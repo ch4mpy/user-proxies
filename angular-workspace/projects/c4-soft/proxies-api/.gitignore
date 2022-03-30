@@ -1,0 +1,7 @@
+api.module.ts
+configuration.ts
+encoder.ts
+index.ts
+variables.ts
+model/**
+api/**

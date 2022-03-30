@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "users-proxies": {
+      "name": "users-proxies",
+      "integrations": {
+        "capacitor": {}
+      },
+      "type": "angular",
+      "root": ""
+    }
+  },
+  "defaultProject": "users-proxies"
+}

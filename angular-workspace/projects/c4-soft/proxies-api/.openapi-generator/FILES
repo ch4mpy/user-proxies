@@ -1,0 +1,13 @@
+api.module.ts
+api/api.ts
+api/users.service.ts
+api/users.serviceInterface.ts
+configuration.ts
+encoder.ts
+index.ts
+model/models.ts
+model/proxyDto.ts
+model/proxyEditDto.ts
+model/userCreateDto.ts
+model/userDto.ts
+variables.ts
