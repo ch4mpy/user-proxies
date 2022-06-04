@@ -13,7 +13,6 @@ import org.hibernate.validator.constraints.Length;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +29,7 @@ import com.c4_soft.howto.user_proxies.exceptions.ProxyUsersUnmodifiableException
 import com.c4_soft.howto.user_proxies.exceptions.ResourceNotFoundException;
 import com.c4_soft.howto.user_proxies.jpa.ProxyRepository;
 import com.c4_soft.howto.user_proxies.jpa.UserRepository;
-import com.c4_soft.howto.user_proxies.security.ProxiesOidcToken;
+import com.c4_soft.howto.user_proxies.security.ProxiesAuthentication;
 import com.c4_soft.howto.user_proxies.web.dtos.ProxyDto;
 import com.c4_soft.howto.user_proxies.web.dtos.ProxyEditDto;
 import com.c4_soft.howto.user_proxies.web.dtos.UserCreateDto;
@@ -58,14 +57,14 @@ public class UserController {
 	@PreAuthorize("isAuthenticated()")
 	public List<UserDto> retrieveByEmailOrPreferredUsernamePart(
 			@RequestParam(name = "emailOrPreferredUsernamePart") @Parameter(description = "Mandatory and min length is 4. Case insensitive part of user e-mail or preferredUserName.") @Length(min = 4) String emailOrPreferredUsernamePart,
-			@AuthenticationPrincipal ProxiesOidcToken token) {
+			ProxiesAuthentication auth) {
 		return userRepo.findAll(UserRepository.searchSpec(emailOrPreferredUsernamePart)).stream().map(userMapper::toDto).toList();
 	}
 
 	@PostMapping
 	@Operation(description = "Register a user in proxies service")
-	@PreAuthorize("#token.subject == #dto.subject or hasAnyAuthority('USERS_ADMIN')")
-	public ResponseEntity<?> create(@RequestBody @Valid UserCreateDto dto, @AuthenticationPrincipal ProxiesOidcToken token) {
+	@PreAuthorize("#auth.name == #dto.subject or hasAnyAuthority('USERS_ADMIN')")
+	public ResponseEntity<?> create(@RequestBody @Valid UserCreateDto dto, ProxiesAuthentication auth) {
 		final var user = new User();
 		userMapper.update(user, dto);
 		return ResponseEntity.created(URI.create(userRepo.save(user).getId().toString())).build();
@@ -76,7 +75,7 @@ public class UserController {
 	@PreAuthorize("isAuthenticated()")
 	public UserDto retrieveBySubject(
 			@PathVariable(name = "subject", required = false) @Parameter(description = "User subject.") String subject,
-			@AuthenticationPrincipal ProxiesOidcToken token) {
+			ProxiesAuthentication auth) {
 		return userRepo
 				.findBySubject(subject)
 				.map(userMapper::toDto)
@@ -84,10 +83,10 @@ public class UserController {
 	}
 
 	@GetMapping("/{subject}/proxies/granted")
-	@PreAuthorize("#token.subject == #subject or hasAnyAuthority('AUTHORIZATION_SERVER', 'USERS_ADMIN') or #token.allows(#subject, 'READ_PROXIES')")
+	@PreAuthorize("#auth.name == #subject or hasAnyAuthority('AUTHORIZATION_SERVER', 'USERS_ADMIN') or #auth.allows(#subject, 'READ_PROXIES')")
 	public List<ProxyDto> retrieveGrantedProxies(
 			@PathVariable(name = "subject", required = false) @Parameter(description = "User subject.") String subject,
-			@AuthenticationPrincipal ProxiesOidcToken token) {
+			ProxiesAuthentication auth) {
 		return proxyRepo
 				.findAll(ProxyRepository.searchSpec(Optional.empty(), Optional.ofNullable(subject), Optional.empty()))
 				.stream()
@@ -96,10 +95,10 @@ public class UserController {
 	}
 
 	@GetMapping("/{subject}/proxies/granting")
-	@PreAuthorize("#token.subject == #subject or hasAnyAuthority('USERS_ADMIN') or #token.allows(#subject, 'READ_PROXIES')")
+	@PreAuthorize("#auth.name == #subject or hasAnyAuthority('USERS_ADMIN') or #auth.allows(#subject, 'READ_PROXIES')")
 	public List<ProxyDto> retrieveGrantingProxies(
 			@PathVariable(name = "subject", required = false) @Parameter(description = "User subject.") String subject,
-			@AuthenticationPrincipal ProxiesOidcToken token) {
+			ProxiesAuthentication auth) {
 		return proxyRepo
 				.findAll(ProxyRepository.searchSpec(Optional.ofNullable(subject), Optional.empty(), Optional.empty()))
 				.stream()
@@ -109,12 +108,12 @@ public class UserController {
 
 	@PostMapping("/{grantingUserSubject}/proxies/granted/{grantedUserSubject}")
 	@Operation(description = "Create grant delegation from \"granting user\" to \"granted user\".")
-	@PreAuthorize("#token.subject == #grantingUserSubject or hasAnyAuthority('USERS_ADMIN') or #token.allows(#grantingUserSubject, 'EDIT_PROXIES')")
+	@PreAuthorize("#auth.name == #grantingUserSubject or hasAnyAuthority('USERS_ADMIN') or #auth.allows(#grantingUserSubject, 'EDIT_PROXIES')")
 	public ResponseEntity<?> createProxy(
 			@PathVariable(name = "grantingUserSubject") @Parameter(description = "Proxied user subject") @NotEmpty String grantingUserSubject,
 			@PathVariable(name = "grantedUserSubject") @Parameter(description = "Granted user subject") @NotEmpty String grantedUserSubject,
 			@Valid @RequestBody ProxyEditDto dto,
-			@AuthenticationPrincipal ProxiesOidcToken token) {
+			ProxiesAuthentication auth) {
 		final var proxy = Proxy.builder().grantingUser(getUser(grantingUserSubject)).grantedUser(getUser(grantedUserSubject)).build();
 		proxyMapper.update(proxy, dto);
 		final var created = proxyRepo.save(proxy);
@@ -124,13 +123,13 @@ public class UserController {
 
 	@PutMapping("/{grantingUserSubject}/proxies/granted/{grantedUserSubject}/{id}")
 	@Operation(description = "Update grant delegation from \"granting user\" to \"granted user\".")
-	@PreAuthorize("#token.subject == #grantingUserSubject or hasAnyAuthority('USERS_ADMIN') or #token.allows(#grantingUserSubject, 'EDIT_PROXIES')")
+	@PreAuthorize("#auth.name == #grantingUserSubject or hasAnyAuthority('USERS_ADMIN') or #auth.allows(#grantingUserSubject, 'EDIT_PROXIES')")
 	public ResponseEntity<?> updateProxy(
 			@PathVariable(name = "grantingUserSubject") @Parameter(description = "Proxied user subject") @NotEmpty String grantingUserSubject,
 			@PathVariable(name = "grantedUserSubject") @Parameter(description = "Granted user subject") @NotEmpty String grantedUserSubject,
 			@PathVariable(name = "id") @Parameter(description = "proxy ID") Long id,
 			@Valid @RequestBody ProxyEditDto dto,
-			@AuthenticationPrincipal ProxiesOidcToken token) {
+			ProxiesAuthentication auth) {
 		final var proxy = getProxy(id, grantingUserSubject, grantedUserSubject);
 		proxyMapper.update(proxy, dto);
 		proxyRepo.saveAll(processOverlaps(proxy));
@@ -139,7 +138,7 @@ public class UserController {
 
 	@DeleteMapping("/{grantingUserSubject}/proxies/granted/{grantedUserSubject}/{id}")
 	@Operation(description = "Delete all grants \"granted user\" had to act on behalf of \"granting user\".")
-	@PreAuthorize("#token.subject == #grantingUserSubject or hasAnyAuthority('USERS_ADMIN') or #token.allows(#grantingUserSubject, 'EDIT_PROXIES')")
+	@PreAuthorize("#auth.name == #grantingUserSubject or hasAnyAuthority('USERS_ADMIN') or #auth.allows(#grantingUserSubject, 'EDIT_PROXIES')")
 	public ResponseEntity<?> deleteProxy(
 			@PathVariable(name = "grantingUserSubject") @Parameter(description = "Proxied user subject") @NotEmpty String grantingUserSubject,
 			@PathVariable(name = "grantedUserSubject") @Parameter(description = "Granted user subject") @NotEmpty String grantedUserSubject,

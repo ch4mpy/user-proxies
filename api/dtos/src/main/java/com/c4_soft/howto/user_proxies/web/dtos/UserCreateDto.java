@@ -27,6 +27,6 @@ public class UserCreateDto implements Serializable {
 	private String email;
 
 	@NotNull
-	private String preferedUsername;
+	private String preferredUsername;
 
 }

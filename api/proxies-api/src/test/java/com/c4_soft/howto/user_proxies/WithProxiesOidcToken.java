@@ -15,8 +15,8 @@ import org.springframework.core.annotation.AliasFor;
 import org.springframework.security.test.context.support.TestExecutionEvent;
 import org.springframework.security.test.context.support.WithSecurityContext;
 
-import com.c4_soft.howto.user_proxies.security.ProxiesOidcToken;
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcAuthentication;
+import com.c4_soft.howto.user_proxies.security.ProxiesAuthentication;
+import com.c4_soft.springaddons.security.oauth2.oidc.OidcToken;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.AbstractAnnotatedAuthenticationBuilder;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 
@@ -42,9 +42,9 @@ public @interface WithProxiesOidcToken {
 	@AliasFor(annotation = WithSecurityContext.class)
 	TestExecutionEvent setupBefore() default TestExecutionEvent.TEST_METHOD;
 
-	public static final class AuthenticationFactory extends AbstractAnnotatedAuthenticationBuilder<WithProxiesOidcToken, OidcAuthentication<ProxiesOidcToken>> {
+	public static final class AuthenticationFactory extends AbstractAnnotatedAuthenticationBuilder<WithProxiesOidcToken, ProxiesAuthentication> {
 		@Override
-		public OidcAuthentication<ProxiesOidcToken> authentication(WithProxiesOidcToken annotation) {
+		public ProxiesAuthentication authentication(WithProxiesOidcToken annotation) {
 			final var claims = super.claims(annotation.claims());
 			@SuppressWarnings("unchecked")
 			final var proxiesclaim = Optional.ofNullable((Map<String, List<String>>) claims.get("proxies")).orElse(new HashMap<String, List<String>>());
@@ -52,7 +52,7 @@ public @interface WithProxiesOidcToken {
 				proxiesclaim.put(p.onBehalfOf(), List.of(p.can()));
 			}
 			claims.put("proxies", proxiesclaim);
-			return new OidcAuthentication<>(new ProxiesOidcToken(claims), super.authorities(annotation.authorities()), annotation.bearerString());
+			return new ProxiesAuthentication(new OidcToken(claims), super.authorities(annotation.authorities()), annotation.bearerString());
 		}
 	}
 

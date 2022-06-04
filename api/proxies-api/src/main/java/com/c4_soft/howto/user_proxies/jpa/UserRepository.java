@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.util.StringUtils;
 
 import com.c4_soft.howto.user_proxies.domain.User;
+import com.c4_soft.howto.user_proxies.domain.User_;
 
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
 
@@ -19,8 +20,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 		}
 
 		return Specification
-				.where(attibuteLikeIgnoreCase("email", emailOrPreferredUsername))
-				.or(attibuteLikeIgnoreCase("preferredUsername", emailOrPreferredUsername));
+				.where(attibuteLikeIgnoreCase(User_.EMAIL, emailOrPreferredUsername))
+				.or(attibuteLikeIgnoreCase(User_.PREFERRED_USERNAME, emailOrPreferredUsername));
 	}
 
 	private static Specification<User> attibuteLikeIgnoreCase(String attributeName, String needle) {

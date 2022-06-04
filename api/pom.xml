@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.6.5</version>
+		<version>2.7.0</version>
 		<relativePath />
 	</parent>
 
@@ -29,11 +29,11 @@
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-		<com.c4-soft.springaddons.version>4.1.7</com.c4-soft.springaddons.version>
+		<com.c4-soft.springaddons.version>4.3.1</com.c4-soft.springaddons.version>
 		<hibernate-enhance-maven-plugin.version>5.6.7.Final</hibernate-enhance-maven-plugin.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<org.mapstruct.version>1.5.0.RC1</org.mapstruct.version>
-		<spring-native.version>0.11.3</spring-native.version>
+		<spring-native.version>0.12.0</spring-native.version>
 		<springdoc-openapi.version>1.6.6</springdoc-openapi.version>
 		<springdoc-openapi-maven-plugin.version>1.4</springdoc-openapi-maven-plugin.version>
 		<springdoc-openapi.output-dir>${project.parent.basedir}/..</springdoc-openapi.output-dir>
@@ -97,12 +97,7 @@
 
 			<dependency>
 				<groupId>com.c4-soft.springaddons</groupId>
-				<artifactId>spring-security-oauth2-addons</artifactId>
-				<version>${com.c4-soft.springaddons.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>com.c4-soft.springaddons</groupId>
-				<artifactId>spring-security-oauth2-test-addons</artifactId>
+				<artifactId>spring-security-oauth2-webmvc-addons</artifactId>
 				<version>${com.c4-soft.springaddons.version}</version>
 			</dependency>
 			<dependency>

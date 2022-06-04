@@ -34,7 +34,7 @@ public class User {
 	private String email;
 
 	@Column(nullable = false, unique = true)
-	private String preferedUsername;
+	private String preferredUsername;
 
 	@OneToMany(mappedBy = "grantedUser", cascade = CascadeType.ALL, orphanRemoval = false)
 	private List<Proxy> grantedProxies = new ArrayList<>();
@@ -42,9 +42,9 @@ public class User {
 	@OneToMany(mappedBy = "grantingUser", cascade = CascadeType.ALL, orphanRemoval = false)
 	private List<Proxy> grantingProxies = new ArrayList<>();
 
-	public User(String subject, String email, String preferedUsername) {
+	public User(String subject, String email, String preferredUsername) {
 		this.subject = subject;
 		this.email = email;
-		this.preferedUsername = preferedUsername;
+		this.preferredUsername = preferredUsername;
 	}
 }

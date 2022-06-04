@@ -30,6 +30,6 @@ public class UserDto implements Serializable {
 	private String email;
 
 	@NotNull
-	private String preferedUsername;
+	private String preferredUsername;
 
 }

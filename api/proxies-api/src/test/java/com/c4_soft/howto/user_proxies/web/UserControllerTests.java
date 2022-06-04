@@ -12,24 +12,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 
-import com.c4_soft.howto.user_proxies.EnableSpringDataWebSupportTestConf;
 import com.c4_soft.howto.user_proxies.WithProxiesOidcToken;
 import com.c4_soft.howto.user_proxies.WithProxiesOidcToken.Grant;
 import com.c4_soft.howto.user_proxies.domain.Proxy;
 import com.c4_soft.howto.user_proxies.domain.User;
 import com.c4_soft.howto.user_proxies.jpa.ProxyRepository;
 import com.c4_soft.howto.user_proxies.jpa.UserRepository;
-import com.c4_soft.springaddons.security.oauth2.config.synchronised.OidcServletApiSecurityConfig;
+import com.c4_soft.howto.user_proxies.security.WebSecurityConfiguration;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
+import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
 import com.c4_soft.springaddons.security.oauth2.test.mockmvc.MockMvcSupport;
 
 @WebMvcTest(controllers = { UserController.class })
-@Import({ EnableSpringDataWebSupportTestConf.class, MockMvcSupport.class, OidcServletApiSecurityConfig.class })
-@ComponentScan(basePackageClasses = { UserProxyMapper.class })
+@AutoConfigureSecurityAddons
+@Import({ WebSecurityConfiguration.class, UserMapperImpl.class, UserProxyMapperImpl.class })
 class UserControllerTests {
 	@Autowired
 	MockMvcSupport mockMvc;

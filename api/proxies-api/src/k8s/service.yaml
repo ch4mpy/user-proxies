@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-proxies-api
+spec:
+  rules:
+  - host: proxies-api.c4-soft.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: proxies-api
+            port:
+              number: 4204
+  ingressClassName: nginx
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-user-proxies
+spec:
+  rules:
+  - host: user-proxies.c4-soft.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: proxies-ui
+            port:
+              number: 80
+  ingressClassName: nginx

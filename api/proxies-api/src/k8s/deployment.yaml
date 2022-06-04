@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: proxies-api
+  name: proxies-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxies-api
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: proxies-api
+    spec:
+      containers:
+      - image: ch4mp/user-proxies:latest
+        name: proxies-api
+        env:
+          - name: SERVER_SSL_KEY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: proxies-api
+                key: server.ssl.key.password
+          - name: SERVER_SSL_KEY_STORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: proxies-api
+                key: server.ssl.key-store.password
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /actuator/health/readiness
+            port: 4204
+        livenessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /actuator/health/liveness
+            port: 4204
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sh", "-c", "sleep 10"]
+        resources: {}
+      imagePullSecrets:
+      - name: regcred
+
+status: {}
