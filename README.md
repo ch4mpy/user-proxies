@@ -1,4 +1,4 @@
-# User "proxies"
+# Howto extend OpenID with advanced users authorisation
 
 OpenID spec solves only first "A" of UAA (Users Authentication and Authorisation): as per its name is focused on user __IDentity__.
 We show here how to handle user __authorisation__ using private claims (roles and proxies in this tutorial).
