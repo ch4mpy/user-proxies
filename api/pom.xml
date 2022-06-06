@@ -9,18 +9,21 @@
 		<relativePath />
 	</parent>
 
-	<groupId>com.c4-soft.howto</groupId>
-	<artifactId>user-proxies</artifactId>
+	<groupId>com.c4-soft.user-proxies</groupId>
+	<artifactId>api</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
-	<name>user-proxies</name>
+	<name>api</name>
 
 	<modules>
 		<module>dtos</module>
 		<module>exceptions</module>
-		<module>proxies-api</module>
+		<module>security</module>
+		<module>security-test</module>
+		<module>user-proxies-api</module>
 		<module>proxies-keycloak-mapper</module>
+		<module>greet-api</module>
 	</modules>
 
 	<properties>
@@ -29,7 +32,7 @@
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-		<com.c4-soft.springaddons.version>4.3.1</com.c4-soft.springaddons.version>
+		<com.c4-soft.springaddons.version>4.3.5</com.c4-soft.springaddons.version>
 		<hibernate-enhance-maven-plugin.version>5.6.7.Final</hibernate-enhance-maven-plugin.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<org.mapstruct.version>1.5.0.RC1</org.mapstruct.version>
@@ -51,18 +54,23 @@
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>com.c4-soft.howto.user-proxies</groupId>
+				<groupId>com.c4-soft.user-proxies.api</groupId>
 				<artifactId>dtos</artifactId>
 				<version>1.0.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
-				<groupId>com.c4-soft.howto.user-proxies</groupId>
+				<groupId>com.c4-soft.user-proxies.api</groupId>
 				<artifactId>exceptions</artifactId>
 				<version>1.0.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
-				<groupId>com.c4-soft.howto.user-proxies</groupId>
+				<groupId>com.c4-soft.user-proxies.api</groupId>
 				<artifactId>security</artifactId>
+				<version>1.0.0-SNAPSHOT</version>
+			</dependency>
+			<dependency>
+				<groupId>com.c4-soft.user-proxies.api</groupId>
+				<artifactId>security-test</artifactId>
 				<version>1.0.0-SNAPSHOT</version>
 			</dependency>
 
@@ -98,6 +106,11 @@
 			<dependency>
 				<groupId>com.c4-soft.springaddons</groupId>
 				<artifactId>spring-security-oauth2-webmvc-addons</artifactId>
+				<version>${com.c4-soft.springaddons.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.c4-soft.springaddons</groupId>
+				<artifactId>spring-security-oauth2-test-addons</artifactId>
 				<version>${com.c4-soft.springaddons.version}</version>
 			</dependency>
 			<dependency>
@@ -154,6 +167,8 @@
 					<artifactId>spring-boot-maven-plugin</artifactId>
 					<configuration>
 						<classifier>${repackage.classifier}</classifier>
+						<keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
+						<createDependencyReducedPom>true</createDependencyReducedPom>
 						<image>
 							<builder>${image.builder}</builder>
 							<env>
@@ -431,6 +446,5 @@
 				<enabled>false</enabled>
 			</releases>
 		</repository>
-
 	</repositories>
 </project>
