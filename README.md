@@ -1,14 +1,14 @@
 # Howto extend OpenID with advanced users authorisation
 
-OpenID spec solves only first "A" of UAA (Users Authentication and Authorisation): as per its name is focused on user __IDentity__.
-We show here how to handle user __authorisation__ using private claims (roles and proxies in this tutorial).
+OpenID spec solves only first "A" of UAA (Users Authentication and Authorisation): as per its name, it is focused on user __IDentity__.
+We show here how to handle user __authorisations__ using private claims (roles and proxies in this tutorial).
 
-Here-after, a `Proxy` is a set of `permissions` an authenticated user is granted by a `proxiedUser`.
+Here-after, a `Proxy` is a set of `grants` an authenticated user is given by a `proxiedUser`.
 
 This repo is a complete tutorial covering:
 - Keycloak authorization server
   * use built-in mappers to add user roles to issued tokens
-  * create a custom mapper to add a "proxies" private claim to tokens, containing collections of granted permissions per proxied-user
+  * create a custom mapper to add a "proxies" private claim to tokens, containing collections of grants per proxied-user
 - spring-boot RESTful API
   * security evaluating roles and proxies from the access-token
   * OpenAPI spec (ease consumption by clients written in almost any language)
@@ -25,18 +25,29 @@ You'll need admin access to a Keycloak __server__ instance. You might [download]
 You might refer to [Keycloak doc to enable TLS](https://www.keycloak.org/server/enabletls).
 
 We'll assume you already
-- created a "user-proxies" client in "master" realm with following settings:
+- created a "user-proxies-client" client in "master" realm with following settings:
+  * `Access Type`: public
   * `Standard Flow Enabled`: on
   * `Valid Redirect URIs`: https://localhost:4200/, https://localhost:8100/, https://{hostanme}:4200/, https://{hostanme}:8100/ where {hostname} should be replaced with the name of your machine on the network (who you generated self-signed certificate for)
   * `Web Origins`: *
-- enabled "client roles" mapper under `Clients` > `user-proxies` > `Mappers` > `Add Builtin` and then edit configuration to set:
+- created a "user-proxies-mapper" client in "master" realm with following settings:
+  * `Access Type`: confidential
+  * `Service Accounts Enabled` and `Authorization Enabled`: on, other flows off
+  * `Web Origins`: https://localhost:8443, https://{hostanme}:8443 where {hostname} should be replaced with the name of your machine on the network (who you generated self-signed certificate for)
+- enabled "client roles" mapper for both clients: under `Clients` > `user-proxies-client` > `Mappers` > `Add Builtin` and then edit configuration to set (same thing with `user-proxies-mapper`):
   * `Client ID`: user-proxies
   * `Add to ID token`: on
   * `Add to access token`: on
-- created a few roles under `Clients` > `user-proxies` > `Roles` (among which one called `NICE_GUY`)
-- defined a few users with various roles assignements
+- created a `NICE_GUY` role under `Clients` > `user-proxies-client` > `Roles` (plus whichever roles you like)
+- created a `TOKEN_ISSUER` role under `Clients` > `user-proxies-mapper` > `Roles`
+- defined a few users with various roles assignements for `user-proxies-client`
+- granted `TOKEN_ISSUER` under `Clients` > `user-proxies-mapper` > `Service Account Roles` > `Client Roles` > `user-proxies-mapper`
 
-## Aditional tooling
+As you might guess:
+- `user-proxies-client` will be used by Angular web & mobile clients to authenticate users (and add UAA to requests sent to resource-servers)
+- `user-proxies-mapper` will be used to allow keycloak mapper to fetch proxies from spring resource-server
+
+## Required tooling
 - JDK 17 or above
 - maven
 - node & npm. `nvm`(`-windows`) is probably your best option
