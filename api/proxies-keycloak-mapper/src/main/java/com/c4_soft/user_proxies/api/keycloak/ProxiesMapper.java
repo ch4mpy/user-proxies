@@ -114,7 +114,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	@Override
 	public String getHelpText() {
-		return "Adds a \"proxies\" private claim containing a map of authorizations the user has to act on behalf of other users (one collection of grant IDs per user subject)";
+		return "Adds a \"proxies\" private claim containing a map of authorizations the user has to act on behalf of other users (one collection of grant IDs per user preferredUsername)";
 	}
 
 	@Override
@@ -124,7 +124,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	private <T extends IDToken> T transform(T token, ProtocolMapperModel mappingModel, KeycloakSession keycloakSession,
 			UserSessionModel userSession, ClientSessionContext clientSessionCtx) {
-		final var proxies = getGrantsByProxiedUserSubject(mappingModel, token);
+		final var proxies = getGrantsByProxiedUsername(mappingModel, token);
 		token.getOtherClaims().put("proxies", proxies);
 		setClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);
 		return token;
@@ -135,14 +135,14 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		return webClientByBaseUri.computeIfAbsent(baseUri, (String k) -> WebClient.builder().baseUrl(baseUri).build());
 	}
 
-	private Map<String, List<String>> getGrantsByProxiedUserSubject(ProtocolMapperModel mappingModel, IDToken token) {
+	private Map<String, List<String>> getGrantsByProxiedUsername(ProtocolMapperModel mappingModel, IDToken token) {
 		final var baseUri = mappingModel.getConfig().get(PROXIES_SERVICE_BASE_URI);
 		try {
 			final Optional<ProxyDto[]> dtos = Optional.ofNullable(getWebClient(baseUri).get()
-					.uri("/{userSubject}/proxies/granted", token.getSubject()).headers(headers -> setBearer(headers, mappingModel)).retrieve().bodyToMono(ProxyDto[].class).block());
+					.uri("/{username}/proxies/granted", token.getPreferredUsername()).headers(headers -> setBearer(headers, mappingModel)).retrieve().bodyToMono(ProxyDto[].class).block());
 
 			return dtos.map(Stream::of)
-					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUserSubject, ProxyDto::getGrants)))
+					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUsername, ProxyDto::getGrants)))
 					.orElse(Map.of());
 		} catch (final Exception e) {
 			log.error("Failed to fetch user proxies: {}", e);

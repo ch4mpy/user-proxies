@@ -15,8 +15,8 @@ import com.c4_soft.user_proxies.api.web.dto.ProxyEditDto;
 @Mapper(componentModel = ComponentModel.SPRING)
 public interface UserProxyMapper {
 
-	@Mapping(target = "grantingUserSubject", source = "grantingUser.subject")
-	@Mapping(target = "grantedUserSubject", source = "grantedUser.subject")
+	@Mapping(target = "grantingUsername", source = "grantingUser.preferredUsername")
+	@Mapping(target = "grantedUsername", source = "grantedUser.preferredUsername")
 	ProxyDto toDto(Proxy domain);
 
 	@Mapping(target = "id", ignore = true)

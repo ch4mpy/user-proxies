@@ -24,8 +24,9 @@ import com.c4_soft.user_proxies.api.domain.Proxy;
 import com.c4_soft.user_proxies.api.domain.User;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth.Grant;
+import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth.Grant;
 
 @WebMvcTest(controllers = { UserController.class })
 @ControllerTest
@@ -58,98 +59,98 @@ class UserControllerTests {
 
 	// @formatter:off
 	// Test access to UserController::retrieveGrantedProxies which is secured with:
-	/** #token.subject == #subject or hasAnyAuthority('AUTHORIZATION_SERVER', 'USERS_ADMIN') or #token.allows(#subject, 'READ_PROXIES') */
+	/** is(#username) or hasAnyAuthority('AUTHORIZATION_SERVER', 'USERS_ADMIN') or onBehalfOf(#username).can('READ_PROXIES') */
 	// @formatter:on
 	@Test
 	void whenAnonymousThenUnauthorized() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isUnauthorized());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	@WithProxiesAuth()
+	@ProxiesAuth()
 	void whenAuthenticatedWithoutRequiredAuthoritiesNorProxiesThenForbidden() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "TOKEN_ISSUER")
+	@ProxiesAuth(authorities = "TOKEN_ISSUER")
 	void whenAuthenticatedAsAuthorizationServerThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "USERS_ADMIN")
+	@ProxiesAuth(authorities = "USERS_ADMIN")
 	void whenAuthenticatedAsAdminThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "machin"))
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "machin"))
 	void whenAuthenticatedAsProxiedUserThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "READ_PROXIES" }) })
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROXIES_READ }) })
 	void whenGrantedWithEditProxiesForProxiedUserThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "DO_SOMETHING" }), // right granting user but wrong grant
-			@Grant(onBehalfOf = "bidule", can = { "READ_PROXIES" }) }) // right grant but wrong granting user
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }), // right granting user but wrong grant
+			@Grant(onBehalfOf = "bidule", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) }) // right grant but wrong granting user
 	void whenNotGrantedWithEditProxiesThenForbidden() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isForbidden());
 	}
 
 	// @formatter:off
 	// Test access to UserController::retrieveGrantingProxies which is secured with:
-	/** #token.subject == #subject or hasAnyAuthority('USERS_ADMIN') or #token.allows(#subject, 'READ_PROXIES') */
+	/** is(#username) or hasAnyAuthority('USERS_ADMIN') or onBehalfOf(#username).can('READ_PROXIES') */
 	// @formatter:on
 	@Test
 	void whenAnonymousThenUnauthorizedToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isUnauthorized());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	@WithProxiesAuth()
+	@ProxiesAuth()
 	void whenAuthenticatedWithoutRequiredAuthoritiesNorProxiesThenForbiddenToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "AUTHORIZATION_SERVER")
+	@ProxiesAuth(authorities = "AUTHORIZATION_SERVER")
 	void whenAuthenticatedAsAuthorizationServerThenForbiddenToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "USERS_ADMIN")
+	@ProxiesAuth(authorities = "USERS_ADMIN")
 	void whenAuthenticatedAsAdminThenCanGetUserProxiesToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "machin"))
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "machin"))
 	void whenAuthenticatedAsProxiedUserThenCanGetUserProxiesToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "READ_PROXIES" }) })
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) })
 	void whenGrantedWithEditProxiesForProxiedUserThenCanGetUserProxiesToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "DO_SOMETHING" }), // right granting user but wrong grant
-			@Grant(onBehalfOf = "bidule", can = { "READ_PROXIES" }) }) // right grant but wrong granting user
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }), // right granting user but wrong grant
+			@Grant(onBehalfOf = "bidule", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) }) // right grant but wrong granting user
 	void whenNotGrantedWithEditProxiesThenForbiddenToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
 
 }

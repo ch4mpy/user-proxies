@@ -12,7 +12,7 @@ import com.c4_soft.user_proxies.api.domain.User_;
 
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
 
-	Optional<User> findBySubject(String subject);
+	Optional<User> findByPreferredUsername(String preferredUsername);
 
 	static Specification<User> searchSpec(String emailOrPreferredUsername) {
 		if (!StringUtils.hasText(emailOrPreferredUsername)) {

@@ -23,11 +23,11 @@ public class ProxyDto implements Serializable {
 
 	@NotEmpty
 	@NotNull
-	private String grantingUserSubject;
+	private String grantingUsername;
 
 	@NotEmpty
 	@NotNull
-	private String grantedUserSubject;
+	private String grantedUsername;
 
 	@NotNull
 	private List<String> grants;

@@ -13,8 +13,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
 import com.c4_soft.user_proxies.api.security.WebSecurityConfig;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth.Grant;
+import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth.Grant;
 
 @WebMvcTest(GreetController.class)
 @AutoConfigureSecurityAddons
@@ -25,8 +26,8 @@ class GreetControllerTest {
 	MockMvc mockMvc;
 
 	@Test
-	@WithProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "truc", "bidule" }),
+	@ProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }),
 			@Grant(onBehalfOf = "chose") })
 	void testGreet() throws Exception {
 		mockMvc
@@ -36,15 +37,28 @@ class GreetControllerTest {
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
-			@Grant(onBehalfOf = "ch4mpy", can = { "greet" }) })
+	@ProxiesAuth(authorities = { "ROLE_NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {})
+	void testWithNiceAuthority() throws Exception {
+		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi ch4mpy!"));
+	}
+
+	@Test
+	@ProxiesAuth(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
+			@Grant(onBehalfOf = "ch4mpy", can = { Permission.PROFILE_READ, Permission.GREET }) })
 	void testWithProxy() throws Exception {
 		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi ch4mpy!"));
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"))
-	void testWithoutProxy() throws Exception {
+	@ProxiesAuth(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
+			@Grant(onBehalfOf = "ch4mpy", can = { Permission.PROFILE_READ, Permission.GREET }) })
+	void testWithHimself() throws Exception {
+		mockMvc.perform(get("/greet/Tonton Pirate").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi Tonton Pirate!"));
+	}
+
+	@Test
+	@ProxiesAuth(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"))
+	void testWithoutNiceAuthorityNorProxyNorHimself() throws Exception {
 		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isForbidden());
 	}
 

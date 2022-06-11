@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.security.test.context.support.TestExecutionEvent;
@@ -24,8 +25,8 @@ import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Documented
-@WithSecurityContext(factory = WithProxiesAuth.AuthenticationFactory.class)
-public @interface WithProxiesAuth {
+@WithSecurityContext(factory = ProxiesAuth.AuthenticationFactory.class)
+public @interface ProxiesAuth {
 
 	@AliasFor("authorities")
 	String[] value() default { "ROLE_USER" };
@@ -42,33 +43,33 @@ public @interface WithProxiesAuth {
 	@AliasFor(annotation = WithSecurityContext.class)
 	TestExecutionEvent setupBefore() default TestExecutionEvent.TEST_METHOD;
 
-	public static final class AuthenticationFactory
-			extends AbstractAnnotatedAuthenticationBuilder<WithProxiesAuth, ProxiesAuthentication> {
-		@Override
-		public ProxiesAuthentication authentication(WithProxiesAuth annotation) {
-			final var claims = super.claims(annotation.claims());
-			@SuppressWarnings("unchecked")
-			final var proxiesclaim = Optional.ofNullable((Map<String, List<String>>) claims.get("proxies"))
-					.orElse(new HashMap<>());
-			for (final var p : annotation.grants()) {
-				proxiesclaim.put(p.onBehalfOf(), List.of(p.can()));
-			}
-			claims.put("proxies", proxiesclaim);
-			final var token = new OidcToken(claims);
-			return new ProxiesAuthentication(token, super.authorities(annotation.authorities()),
-					proxiesclaim.entrySet().stream()
-							.collect(Collectors.toMap(Map.Entry::getKey,
-									e -> new Proxy(e.getKey(), token.getSubject(), e.getValue()))),
-					annotation.bearerString());
-		}
-	}
-
 	@Target({ ElementType.METHOD, ElementType.TYPE })
 	@Retention(RetentionPolicy.RUNTIME)
 	public static @interface Grant {
 
 		String onBehalfOf();
 
-		String[] can() default {};
+		Permission[] can() default {};
+	}
+
+	public static final class AuthenticationFactory
+			extends AbstractAnnotatedAuthenticationBuilder<ProxiesAuth, ProxiesAuthentication> {
+		@Override
+		public ProxiesAuthentication authentication(ProxiesAuth annotation) {
+			final var claims = super.claims(annotation.claims());
+			@SuppressWarnings("unchecked")
+			final var proxiesclaim = Optional.ofNullable((Map<String, List<String>>) claims.get("proxies"))
+					.orElse(new HashMap<>());
+			for (final var p : annotation.grants()) {
+				proxiesclaim.put(p.onBehalfOf(), Stream.of(p.can()).map(Permission::toString).toList());
+			}
+			claims.put("proxies", proxiesclaim);
+
+			final var token = new OidcToken(claims);
+			final var authorities = super.authorities(annotation.authorities());
+			final var proxies = proxiesclaim.entrySet().stream()
+					.map(e -> new Proxy(e.getKey(), token.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
+			return new ProxiesAuthentication(token, authorities, proxies, annotation.bearerString());
+		}
 	}
 }

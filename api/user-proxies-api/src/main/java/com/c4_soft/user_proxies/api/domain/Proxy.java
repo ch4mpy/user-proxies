@@ -17,6 +17,8 @@ import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 
+import com.c4_soft.user_proxies.api.security.Permission;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -25,7 +27,8 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "user_proxies", uniqueConstraints = {
-		@UniqueConstraint(name = "UniqueProxiedAndGrantedUsers", columnNames = { "granting_user_id", "granted_user_id" }) })
+		@UniqueConstraint(name = "UniqueProxiedAndGrantedUsers", columnNames = { "granting_user_id",
+				"granted_user_id" }) })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -48,7 +51,7 @@ public class Proxy {
 	@NotNull
 	@ElementCollection(fetch = FetchType.EAGER)
 	@Default
-	private List<String> grants = new ArrayList<>();
+	private List<Permission> grants = new ArrayList<>();
 
 	@NotNull
 	@Column(name = "start_date", nullable = false, updatable = true)
@@ -56,4 +59,19 @@ public class Proxy {
 
 	@Column(name = "end_date", nullable = true, updatable = true)
 	private Date end;
+
+	public void allow(Permission grant) {
+		if (!grants.contains(grant)) {
+			grants.add(grant);
+		}
+	}
+
+	public void deny(Permission grant) {
+		grants.remove(grant);
+	}
+	
+	public boolean isActive() {
+		final var now = new Date();
+		return start.before(now) && (end == null || end.after(now));
+	}
 }

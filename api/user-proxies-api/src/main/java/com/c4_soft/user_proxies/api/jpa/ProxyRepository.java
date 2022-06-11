@@ -13,13 +13,13 @@ import com.c4_soft.user_proxies.api.domain.Proxy_;
 import com.c4_soft.user_proxies.api.domain.User_;
 
 public interface ProxyRepository extends JpaRepository<Proxy, Long>, JpaSpecificationExecutor<Proxy> {
-	static Specification<Proxy> searchSpec(Optional<String> grantingUserSubject, Optional<String> grantedUserSubject, Optional<Date> date) {
+	static Specification<Proxy> searchSpec(Optional<String> grantingUsername, Optional<String> grantedUsername, Optional<Date> date) {
 		final var specs =
 				Stream
 						.of(
 								Optional.of(endsAfter(date.orElse(new Date()))),
-								grantingUserSubject.map(ProxyRepository::grantingUserSubjectLike),
-								grantedUserSubject.map(ProxyRepository::grantedUserSubjectLike),
+								grantingUsername.map(ProxyRepository::grantingUserPreferredUsernameLike),
+								grantedUsername.map(ProxyRepository::grantedUserPreferredUsernameLike),
 								date.map(ProxyRepository::startsBefore))
 						.filter(Optional::isPresent)
 						.map(Optional::get)
@@ -35,12 +35,12 @@ public interface ProxyRepository extends JpaRepository<Proxy, Long>, JpaSpecific
 		return (root, query, cb) -> cb.or(cb.isNull(root.get(Proxy_.end)), cb.greaterThanOrEqualTo(root.get(Proxy_.end), date));
 	}
 
-	static Specification<Proxy> grantingUserSubjectLike(String grantingUserSubject) {
-		return (root, query, cb) -> cb.like(root.get(Proxy_.grantingUser).get(User_.subject), grantingUserSubject);
+	static Specification<Proxy> grantingUserPreferredUsernameLike(String grantingUsername) {
+		return (root, query, cb) -> cb.like(root.get(Proxy_.grantingUser).get(User_.preferredUsername), grantingUsername);
 	}
 
-	static Specification<Proxy> grantedUserSubjectLike(String grantedUserSubject) {
-		return (root, query, cb) -> cb.like(root.get(Proxy_.grantedUser).get(User_.subject), grantedUserSubject);
+	static Specification<Proxy> grantedUserPreferredUsernameLike(String grantedUsername) {
+		return (root, query, cb) -> cb.like(root.get(Proxy_.grantedUser).get(User_.preferredUsername), grantedUsername);
 	}
 
 	static Specification<Proxy> startsBefore(Date date) {

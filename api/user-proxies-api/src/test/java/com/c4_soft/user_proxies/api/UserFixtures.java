@@ -26,12 +26,12 @@ public class UserFixtures {
 	}
 
 	public static Map<String, User> all() {
-		return Stream.of(admin(), userA(), userB()).collect(Collectors.toMap(User::getSubject, u -> u));
+		return Stream.of(admin(), userA(), userB()).collect(Collectors.toMap(User::getPreferredUsername, u -> u));
 	}
 
 	public static Map<String, User> setUp(UserRepository userRepository) {
 		final var users = UserFixtures.all();
-		when(userRepository.findBySubject(anyString())).thenAnswer(invocation -> Optional.ofNullable(users.get(invocation.getArgument(0))));
+		when(userRepository.findByPreferredUsername(anyString())).thenAnswer(invocation -> Optional.ofNullable(users.get(invocation.getArgument(0))));
 		return users;
 	}
 }

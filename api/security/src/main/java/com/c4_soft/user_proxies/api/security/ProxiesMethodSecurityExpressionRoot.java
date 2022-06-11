@@ -7,8 +7,12 @@ final class ProxiesMethodSecurityExpressionRoot extends GenericMethodSecurityExp
 		super(ProxiesAuthentication.class);
 	}
 
-	public Proxy onBehalfOf(String proxiedUserSubject) {
-		return getAuth().getProxyFor(proxiedUserSubject);
+	public boolean is(String preferredUsername) {
+		return getAuth().hasName(preferredUsername);
+	}
+
+	public Proxy onBehalfOf(String proxiedUsername) {
+		return getAuth().getProxyFor(proxiedUsername);
 	}
 
 	public boolean isNice() {

@@ -341,7 +341,14 @@ Define `Proxy` and `ProxiesAuthentication` classes:
 ```java
 package com.c4_soft.user_proxies.api.security;
 
-import java.util.Collection;
+public enum Permission {
+	GREET, PROFILE_READ, PROXIES_READ, PROXIES_EDIT
+}
+```
+```java
+package com.c4_soft.user_proxies.api.security;
+
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -349,19 +356,25 @@ import java.util.Set;
 import lombok.Data;
 
 @Data
-public class Proxy {
-	private final String proxiedSubject;
-	private final String tenantSubject;
-	private final Set<String> permissions;
+public class Proxy implements Serializable {
+	private static final long serialVersionUID = 6372863392726898339L;
+	
+	private final String proxiedUsername;
+	private final String tenantUsername;
+	private final Set<Permission> permissions;
 
-	public Proxy(String proxiedSubject, String tenantSubject, Collection<String> permissions) {
-		this.proxiedSubject = proxiedSubject;
-		this.tenantSubject = tenantSubject;
+	public Proxy(String proxiedUsername, String tenantUsername, Set<Permission> permissions) {
+		this.proxiedUsername = proxiedUsername;
+		this.tenantUsername = tenantUsername;
 		this.permissions = Collections.unmodifiableSet(new HashSet<>(permissions));
 	}
 
-	public boolean can(String permission) {
+	public boolean can(Permission permission) {
 		return permissions.contains(permission);
+	}
+
+	public boolean can(String permission) {
+		return this.can(Permission.valueOf(permission));
 	}
 }
 ```
@@ -370,8 +383,10 @@ package com.c4_soft.user_proxies.api.security;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.GrantedAuthority;
 
@@ -388,13 +403,22 @@ public class ProxiesAuthentication extends OidcAuthentication<OidcToken> {
 
 	private final Map<String, Proxy> proxies;
 
-	public ProxiesAuthentication(OidcToken token, Collection<? extends GrantedAuthority> authorities, Map<String, Proxy> proxies, String bearerString) {
+	public ProxiesAuthentication(OidcToken token, Collection<? extends GrantedAuthority> authorities, Collection<Proxy> proxies, String bearerString) {
 		super(token, authorities, bearerString);
-		this.proxies = Collections.unmodifiableMap(proxies);
+		this.proxies = Collections.unmodifiableMap(proxies.stream().collect(Collectors.toMap(Proxy::getProxiedUsername, p -> p)));
+	}
+	
+	@Override
+	public String getName() {
+		return getToken().getPreferredUsername();
+	}
+	
+	public boolean hasName(String preferredUsername) {
+		return Objects.equals(getName(), preferredUsername);
 	}
 
-	public Proxy getProxyFor(String proxiedUserSubject) {
-		return this.proxies.getOrDefault(proxiedUserSubject, new Proxy(proxiedUserSubject, getToken().getSubject(), List.of()));
+	public Proxy getProxyFor(String proxiedUsername) {
+		return this.proxies.getOrDefault(proxiedUsername, new Proxy(proxiedUsername, getToken().getPreferredUsername(), Set.of()));
 	}
 }
 ```
@@ -407,6 +431,7 @@ This gives following security-config:
 ```java
 package com.c4_soft.user_proxies.api.security;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -415,7 +440,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2AuthenticationConverter;
 import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2OidcTokenConverter;
@@ -426,18 +450,18 @@ import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpr
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
 
-	public interface ProxiesConverter extends Converter<Jwt, Map<String, Proxy>> {
+	public interface OidcToken2ProxiesConverter extends Converter<OidcToken, Collection<Proxy>> {
 	}
 
 	@Bean
-	public ProxiesConverter proxiesConverter() {
-		return jwt -> {
+	public OidcToken2ProxiesConverter proxiesConverter() {
+		return token -> {
 			@SuppressWarnings("unchecked")
-			final var proxiesClaim = (Map<String, List<String>>) jwt.getClaims().get("proxies");
+			final var proxiesClaim = (Map<String, List<String>>) token.getClaims().get("proxies");
 			if (proxiesClaim == null) {
-				return Map.of();
+				return List.of();
 			}
-			return proxiesClaim.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> new Proxy(e.getKey(), jwt.getSubject(), e.getValue())));
+			return proxiesClaim.entrySet().stream().map(e -> new Proxy(e.getKey(), token.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
 		};
 	}
 	
@@ -445,27 +469,41 @@ public class WebSecurityConfig {
 	public SynchronizedJwt2AuthenticationConverter<ProxiesAuthentication> authenticationConverter(
 			JwtGrantedAuthoritiesConverter authoritiesConverter,
 			SynchronizedJwt2OidcTokenConverter<OidcToken> tokenConverter,
-			ProxiesConverter proxiesConverter) {
-		return jwt -> new ProxiesAuthentication(tokenConverter.convert(jwt), authoritiesConverter.convert(jwt), proxiesConverter.convert(jwt), jwt.getTokenValue());
+			OidcToken2ProxiesConverter proxiesConverter) {
+		return jwt ->  {
+            final var token = tokenConverter.convert(jwt);
+            final var authorities = authoritiesConverter.convert(jwt);
+            final var proxies = proxiesConverter.convert(token);
+            return new ProxiesAuthentication(token, authorities, proxies, jwt.getTokenValue());
+        };
 	}
 	
 	@Bean
 	public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
 		return new GenericMethodSecurityExpressionHandler<>(ProxiesMethodSecurityExpressionRoot::new);
 	}
-	
-	final class ProxiesMethodSecurityExpressionRoot extends GenericMethodSecurityExpressionRoot<ProxiesAuthentication> {
-		public ProxiesMethodSecurityExpressionRoot() {
-			super(ProxiesAuthentication.class);
-		}
-	
-		public Proxy onBehalfOf(String proxiedUserSubject) {
-			return getAuth().getProxyFor(proxiedUserSubject);
-		}
-	
-		public boolean isNice() {
-			return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
-		}
+}
+```
+```java
+package com.c4_soft.user_proxies.api.security;
+
+import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpressionRoot;
+
+final class ProxiesMethodSecurityExpressionRoot extends GenericMethodSecurityExpressionRoot<ProxiesAuthentication> {
+	public ProxiesMethodSecurityExpressionRoot() {
+		super(ProxiesAuthentication.class);
+	}
+
+	public boolean is(String preferredUsername) {
+		return getAuth().hasName(preferredUsername);
+	}
+
+	public Proxy onBehalfOf(String proxiedUsername) {
+		return getAuth().getProxyFor(proxiedUsername);
+	}
+
+	public boolean isNice() {
+		return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
 	}
 }
 ```
@@ -482,9 +520,12 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.security.test.context.support.TestExecutionEvent;
@@ -498,8 +539,8 @@ import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Documented
-@WithSecurityContext(factory = WithProxiesAuth.AuthenticationFactory.class)
-public @interface WithProxiesAuth {
+@WithSecurityContext(factory = ProxiesAuth.AuthenticationFactory.class)
+public @interface ProxiesAuth {
 
 	@AliasFor("authorities")
 	String[] value() default { "ROLE_USER" };
@@ -516,27 +557,34 @@ public @interface WithProxiesAuth {
 	@AliasFor(annotation = WithSecurityContext.class)
 	TestExecutionEvent setupBefore() default TestExecutionEvent.TEST_METHOD;
 
-	public static final class AuthenticationFactory extends AbstractAnnotatedAuthenticationBuilder<WithProxiesAuth, ProxiesAuthentication> {
-		@Override
-		public ProxiesAuthentication authentication(WithProxiesAuth annotation) {
-			final var claims = super.claims(annotation.claims());
-			@SuppressWarnings("unchecked")
-			final var proxiesclaim = Optional.ofNullable((Map<String, List<String>>) claims.get("proxies")).orElse(new HashMap<>());
-			for (final var p : annotation.grants()) {
-				proxiesclaim.put(p.onBehalfOf(), List.of(p.can()));
-			}
-			claims.put("proxies", proxiesclaim);
-			return new ProxiesAuthentication(new OidcToken(claims), super.authorities(annotation.authorities()), annotation.bearerString());
-		}
-	}
-
 	@Target({ ElementType.METHOD, ElementType.TYPE })
 	@Retention(RetentionPolicy.RUNTIME)
 	public static @interface Grant {
 
 		String onBehalfOf();
 
-		String[] can() default {};
+		Permission[] can() default {};
+	}
+
+	public static final class AuthenticationFactory
+			extends AbstractAnnotatedAuthenticationBuilder<ProxiesAuth, ProxiesAuthentication> {
+		@Override
+		public ProxiesAuthentication authentication(ProxiesAuth annotation) {
+			final var claims = super.claims(annotation.claims());
+			@SuppressWarnings("unchecked")
+			final var proxiesclaim = Optional.ofNullable((Map<String, List<String>>) claims.get("proxies"))
+					.orElse(new HashMap<>());
+			for (final var p : annotation.grants()) {
+				proxiesclaim.put(p.onBehalfOf(), Stream.of(p.can()).map(Permission::toString).toList());
+			}
+			claims.put("proxies", proxiesclaim);
+
+			final var token = new OidcToken(claims);
+			final var authorities = super.authorities(annotation.authorities());
+			final var proxies = proxiesclaim.entrySet().stream()
+					.map(e -> new Proxy(e.getKey(), token.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
+			return new ProxiesAuthentication(token, authorities, proxies, annotation.bearerString());
+		}
 	}
 }
 ```
@@ -571,11 +619,11 @@ public class ProxyDto implements Serializable {
 
 	@NotEmpty
 	@NotNull
-	private String grantingUserSubject;
+	private String grantingUsername;
 
 	@NotEmpty
 	@NotNull
-	private String grantedUserSubject;
+	private String grantedUsername;
 
 	@NotNull
 	private List<String> grants;
@@ -694,6 +742,8 @@ import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 
+import com.c4_soft.user_proxies.api.security.Permission;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -702,7 +752,8 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "user_proxies", uniqueConstraints = {
-		@UniqueConstraint(name = "UniqueProxiedAndGrantedUsers", columnNames = { "granting_user_id", "granted_user_id" }) })
+		@UniqueConstraint(name = "UniqueProxiedAndGrantedUsers", columnNames = { "granting_user_id",
+				"granted_user_id" }) })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -725,7 +776,7 @@ public class Proxy {
 	@NotNull
 	@ElementCollection(fetch = FetchType.EAGER)
 	@Default
-	private List<String> grants = new ArrayList<>();
+	private List<Permission> grants = new ArrayList<>();
 
 	@NotNull
 	@Column(name = "start_date", nullable = false, updatable = true)
@@ -733,6 +784,21 @@ public class Proxy {
 
 	@Column(name = "end_date", nullable = true, updatable = true)
 	private Date end;
+
+	public void allow(Permission grant) {
+		if (!grants.contains(grant)) {
+			grants.add(grant);
+		}
+	}
+
+	public void deny(Permission grant) {
+		grants.remove(grant);
+	}
+	
+	public boolean isActive() {
+		final var now = new Date();
+		return start.before(now) && (end == null || end.after(now));
+	}
 }
 ```
 So, yes, I just promoted low coupling from domain classes to JPA annotations (and I'm fine with that).
@@ -756,7 +822,7 @@ import com.c4_soft.user_proxies.api.domain.User_;
 
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
 
-	Optional<User> findBySubject(String subject);
+	Optional<User> findByPreferredUsername(String preferredUsername);
 
 	static Specification<User> searchSpec(String emailOrPreferredUsername) {
 		if (!StringUtils.hasText(emailOrPreferredUsername)) {
@@ -790,13 +856,13 @@ import com.c4_soft.user_proxies.api.domain.Proxy_;
 import com.c4_soft.user_proxies.api.domain.User_;
 
 public interface ProxyRepository extends JpaRepository<Proxy, Long>, JpaSpecificationExecutor<Proxy> {
-	static Specification<Proxy> searchSpec(Optional<String> grantingUserSubject, Optional<String> grantedUserSubject, Optional<Date> date) {
+	static Specification<Proxy> searchSpec(Optional<String> grantingUsername, Optional<String> grantedUsername, Optional<Date> date) {
 		final var specs =
 				Stream
 						.of(
 								Optional.of(endsAfter(date.orElse(new Date()))),
-								grantingUserSubject.map(ProxyRepository::grantingUserSubjectLike),
-								grantedUserSubject.map(ProxyRepository::grantedUserSubjectLike),
+								grantingUsername.map(ProxyRepository::grantingUserPreferredUsernameLike),
+								grantedUsername.map(ProxyRepository::grantedUserPreferredUsernameLike),
 								date.map(ProxyRepository::startsBefore))
 						.filter(Optional::isPresent)
 						.map(Optional::get)
@@ -812,12 +878,12 @@ public interface ProxyRepository extends JpaRepository<Proxy, Long>, JpaSpecific
 		return (root, query, cb) -> cb.or(cb.isNull(root.get(Proxy_.end)), cb.greaterThanOrEqualTo(root.get(Proxy_.end), date));
 	}
 
-	static Specification<Proxy> grantingUserSubjectLike(String grantingUserSubject) {
-		return (root, query, cb) -> cb.like(root.get(Proxy_.grantingUser).get(User_.subject), grantingUserSubject);
+	static Specification<Proxy> grantingUserPreferredUsernameLike(String grantingUsername) {
+		return (root, query, cb) -> cb.like(root.get(Proxy_.grantingUser).get(User_.preferredUsername), grantingUsername);
 	}
 
-	static Specification<Proxy> grantedUserSubjectLike(String grantedUserSubject) {
-		return (root, query, cb) -> cb.like(root.get(Proxy_.grantedUser).get(User_.subject), grantedUserSubject);
+	static Specification<Proxy> grantedUserPreferredUsernameLike(String grantedUsername) {
+		return (root, query, cb) -> cb.like(root.get(Proxy_.grantedUser).get(User_.preferredUsername), grantedUsername);
 	}
 
 	static Specification<Proxy> startsBefore(Date date) {
@@ -837,6 +903,8 @@ import java.util.List;
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import com.c4_soft.user_proxies.api.security.Permission;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -849,7 +917,7 @@ public class ProxyEditDto implements Serializable {
 	private static final long serialVersionUID = 7381717131881105091L;
 
 	@NotNull
-	private List<String> grants;
+	private List<Permission> grants;
 
 	@NotNull
 	private Long start;
@@ -973,8 +1041,8 @@ import com.c4_soft.user_proxies.api.web.dto.ProxyEditDto;
 @Mapper(componentModel = ComponentModel.SPRING)
 public interface UserProxyMapper {
 
-	@Mapping(target = "grantingUserSubject", source = "grantingUser.subject")
-	@Mapping(target = "grantedUserSubject", source = "grantedUser.subject")
+	@Mapping(target = "grantingUsername", source = "grantingUser.preferredUsername")
+	@Mapping(target = "grantedUsername", source = "grantedUser.preferredUsername")
 	ProxyDto toDto(Proxy domain);
 
 	@Mapping(target = "id", ignore = true)
@@ -1001,12 +1069,12 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 
-import org.hibernate.validator.constraints.Length;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -1026,13 +1094,11 @@ import com.c4_soft.user_proxies.api.exceptions.ProxyUsersUnmodifiableException;
 import com.c4_soft.user_proxies.api.exceptions.ResourceNotFoundException;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.ProxiesAuthentication;
+import com.c4_soft.user_proxies.api.security.Permission;
 import com.c4_soft.user_proxies.api.web.dto.ProxyDto;
 import com.c4_soft.user_proxies.api.web.dto.ProxyEditDto;
 import com.c4_soft.user_proxies.api.web.dto.UserCreateDto;
 import com.c4_soft.user_proxies.api.web.dto.UserDto;
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcAuthentication;
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcToken;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -1051,127 +1117,123 @@ public class UserController {
 
 	@GetMapping
 	@Operation(description = "Retrieve collection of users.")
-	@PreAuthorize("isAuthenticated()")
+	@PreAuthorize("hasAuthority('USERS_ADMIN')")
 	public List<UserDto> retrieveByEmailOrPreferredUsernamePart(
-			@RequestParam(name = "emailOrPreferredUsernamePart") @Parameter(description = "Mandatory and min length is 4. Case insensitive part of user e-mail or preferredUserName.") @Length(min = 4) String emailOrPreferredUsernamePart,
-			ProxiesAuthentication auth) {
-		return userRepo.findAll(UserRepository.searchSpec(emailOrPreferredUsernamePart)).stream().map(userMapper::toDto).toList();
+			@RequestParam(name = "emailOrPreferredUsernamePart") @Parameter(description = "Mandatory. Case insensitive part of user e-mail or preferredUserName.") @NotEmpty String emailOrPreferredUsernamePart) {
+		return userRepo.findAll(UserRepository.searchSpec(emailOrPreferredUsernamePart)).stream().map(userMapper::toDto)
+				.toList();
 	}
 
 	@PostMapping
 	@Operation(description = "Register a user in proxies service")
-	@PreAuthorize("#auth.name == #dto.subject or hasAuthority('USERS_ADMIN')")
-	public ResponseEntity<?> create(@RequestBody @Valid UserCreateDto dto, ProxiesAuthentication auth) {
+	@PreAuthorize("is(#dto.preferredUsername) or hasAuthority('USERS_ADMIN')")
+	public ResponseEntity<Void> create(@RequestBody @Valid UserCreateDto dto) {
 		final var user = new User();
 		userMapper.update(user, dto);
-		return ResponseEntity.created(URI.create(userRepo.save(user).getId().toString())).build();
+		return ResponseEntity.created(URI.create(userRepo.save(user).getPreferredUsername())).build();
 	}
 
-	@GetMapping("/{subject}")
-	@Operation(description = "Retrieve a user by subject")
-	@PreAuthorize("isAuthenticated()")
-	public UserDto retrieveBySubject(
-			@PathVariable(name = "subject", required = false) @Parameter(description = "User subject.") String subject,
-			ProxiesAuthentication auth) {
-		return userRepo
-				.findBySubject(subject)
-				.map(userMapper::toDto)
-				.orElseThrow(() -> new ResourceNotFoundException(String.format("No user with subject %s", subject)));
+	@GetMapping("/{username}")
+	@Operation(description = "Retrieve a user by preferredUsername")
+	@PreAuthorize("is(#username) or hasAuthority('USERS_ADMIN') or onBehalfOf(#username).can('PROFILE_READ')")
+	public UserDto retrieveByPreferredUsername(
+			@PathVariable(name = "username", required = false) @Parameter(description = "User preferredUsername.") String username) {
+		return userRepo.findByPreferredUsername(username).map(userMapper::toDto).orElseThrow(
+				() -> new ResourceNotFoundException(String.format("No user with preferred_username %s", username)));
 	}
 
-	@GetMapping("/{subject}/proxies/granted")
-	@PreAuthorize("#auth.name == #subject or hasAnyAuthority('TOKEN_ISSUER', 'USERS_ADMIN') or isGranted(#subject, 'READ_PROXIES')")
+	@GetMapping("/{username}/proxies/granted")
+	@PreAuthorize("is(#username) or hasAnyAuthority('TOKEN_ISSUER', 'USERS_ADMIN') or onBehalfOf(#username).can('PROXIES_READ')")
 	public List<ProxyDto> retrieveGrantedProxies(
-			@PathVariable(name = "subject", required = false) @Parameter(description = "User subject.") String subject,
-			ProxiesAuthentication auth) {
+			@PathVariable(name = "username", required = false) @Parameter(description = "User preferredUsername.") String username,
+			@RequestParam(name = "isActiveOnly", defaultValue = "false") boolean isActiveOnly) {
 		return proxyRepo
-				.findAll(ProxyRepository.searchSpec(Optional.empty(), Optional.ofNullable(subject), Optional.empty()))
-				.stream()
-				.map(proxyMapper::toDto)
-				.toList();
+				.findAll(ProxyRepository.searchSpec(Optional.empty(), Optional.ofNullable(username), Optional.empty()))
+				.stream().filter(p -> !isActiveOnly || p.isActive()).map(proxyMapper::toDto).toList();
 	}
 
-	@GetMapping("/{subject}/proxies/granting")
-	@PreAuthorize("#auth.name == #subject or hasAnyAuthority('USERS_ADMIN') or isGranted(#subject, 'READ_PROXIES')")
+	@GetMapping("/{username}/proxies/granting")
+	@PreAuthorize("is(#username) or hasAnyAuthority('USERS_ADMIN') or onBehalfOf(#username).can('PROXIES_READ')")
 	public List<ProxyDto> retrieveGrantingProxies(
-			@PathVariable(name = "subject", required = false) @Parameter(description = "User subject.") String subject,
-			ProxiesAuthentication auth) {
+			@PathVariable(name = "username", required = false) @Parameter(description = "User preferredUsername.") String username) {
 		return proxyRepo
-				.findAll(ProxyRepository.searchSpec(Optional.ofNullable(subject), Optional.empty(), Optional.empty()))
-				.stream()
-				.map(proxyMapper::toDto)
-				.toList();
+				.findAll(ProxyRepository.searchSpec(Optional.ofNullable(username), Optional.empty(), Optional.empty()))
+				.stream().map(proxyMapper::toDto).toList();
 	}
 
-	@PostMapping("/{grantingUserSubject}/proxies/granted/{grantedUserSubject}")
+	@PostMapping("/{grantingUsername}/proxies/granted/{grantedUsername}")
 	@Operation(description = "Create grant delegation from \"granting user\" to \"granted user\".")
-	@PreAuthorize("#auth.name == #grantingUserSubject or hasAuthority('USERS_ADMIN') or isGranted(#grantingUserSubject, 'EDIT_PROXIES')")
-	public ResponseEntity<?> createProxy(
-			@PathVariable(name = "grantingUserSubject") @Parameter(description = "Proxied user subject") @NotEmpty String grantingUserSubject,
-			@PathVariable(name = "grantedUserSubject") @Parameter(description = "Granted user subject") @NotEmpty String grantedUserSubject,
-			@Valid @RequestBody ProxyEditDto dto,
-			ProxiesAuthentication auth) {
-		final var proxy = Proxy.builder().grantingUser(getUser(grantingUserSubject)).grantedUser(getUser(grantedUserSubject)).build();
+	@PreAuthorize("is(#grantingUsername) or hasAuthority('USERS_ADMIN') or onBehalfOf(#grantingUsername).can('PROXIES_EDIT')")
+	public ResponseEntity<Void> createProxy(
+			@PathVariable(name = "grantingUsername") @Parameter(description = "Proxied user preferredUsername") @NotEmpty String grantingUsername,
+			@PathVariable(name = "grantedUsername") @Parameter(description = "Granted user preferredUsername") @NotEmpty String grantedUsername,
+			@Valid @RequestBody ProxyEditDto dto) {
+		final var proxy = Proxy.builder().grantingUser(getUser(grantingUsername)).grantedUser(getUser(grantedUsername))
+				.build();
 		proxyMapper.update(proxy, dto);
+		
+		// add required READ_PROFILE grant if missing (granted user should always be able to retrieve granting user profile basic data) 
+		proxy.allow(Permission.PROFILE_READ);
+		
+		// persist new proxy (and get a DB ID)
 		final var created = proxyRepo.save(proxy);
-		proxyRepo.saveAll(processOverlaps(created));
+		
+		// process and save proxies overlaps
+		proxyRepo.saveAll(processOverlaps(proxy));
+		
 		return ResponseEntity.created(URI.create(created.getId().toString())).build();
 	}
 
-	@PutMapping("/{grantingUserSubject}/proxies/granted/{grantedUserSubject}/{id}")
+	@PutMapping("/{grantingUsername}/proxies/granted/{grantedUsername}/{id}")
 	@Operation(description = "Update grant delegation from \"granting user\" to \"granted user\".")
-	@PreAuthorize("#auth.name == #grantingUserSubject or hasAuthority('USERS_ADMIN') or isGranted(#grantingUserSubject, 'EDIT_PROXIES')")
-	public ResponseEntity<?> updateProxy(
-			@PathVariable(name = "grantingUserSubject") @Parameter(description = "Proxied user subject") @NotEmpty String grantingUserSubject,
-			@PathVariable(name = "grantedUserSubject") @Parameter(description = "Granted user subject") @NotEmpty String grantedUserSubject,
+	@PreAuthorize("is(#grantingUsername) or hasAuthority('USERS_ADMIN') or onBehalfOf(#grantingUsername).can('PROXIES_EDIT')")
+	public ResponseEntity<Void> updateProxy(
+			@PathVariable(name = "grantingUsername") @Parameter(description = "Proxied user preferredUsername") @NotEmpty String grantingUsername,
+			@PathVariable(name = "grantedUsername") @Parameter(description = "Granted user preferredUsername") @NotEmpty String grantedUsername,
 			@PathVariable(name = "id") @Parameter(description = "proxy ID") Long id,
-			@Valid @RequestBody ProxyEditDto dto,
-			ProxiesAuthentication auth) {
-		final var proxy = getProxy(id, grantingUserSubject, grantedUserSubject);
+			@Valid @RequestBody ProxyEditDto dto) {
+		final var proxy = getProxy(id, grantingUsername, grantedUsername);
 		proxyMapper.update(proxy, dto);
 		proxyRepo.saveAll(processOverlaps(proxy));
 		return ResponseEntity.accepted().build();
 	}
 
-	@DeleteMapping("/{grantingUserSubject}/proxies/granted/{grantedUserSubject}/{id}")
+	@DeleteMapping("/{grantingUsername}/proxies/granted/{grantedUsername}/{id}")
 	@Operation(description = "Delete all grants \"granted user\" had to act on behalf of \"granting user\".")
-	@PreAuthorize("#auth.name == #grantingUserSubject or hasAuthority('USERS_ADMIN') or isGranted(#grantingUserSubject, 'EDIT_PROXIES')")
-	public ResponseEntity<?> deleteProxy(
-			@PathVariable(name = "grantingUserSubject") @Parameter(description = "Proxied user subject") @NotEmpty String grantingUserSubject,
-			@PathVariable(name = "grantedUserSubject") @Parameter(description = "Granted user subject") @NotEmpty String grantedUserSubject,
-			@PathVariable(name = "id") @Parameter(description = "proxy ID") Long id,
-			OidcAuthentication<OidcToken> auth) {
-		final var proxy = getProxy(id, grantingUserSubject, grantedUserSubject);
+	@PreAuthorize("is(#grantingUsername) or hasAuthority('USERS_ADMIN') or onBehalfOf(#grantingUsername).can('PROXIES_EDIT')")
+	public ResponseEntity<Void> deleteProxy(
+			@PathVariable(name = "grantingUsername") @Parameter(description = "Proxied user preferredUsername") @NotEmpty String grantingUsername,
+			@PathVariable(name = "grantedUsername") @Parameter(description = "Granted user preferredUsername") @NotEmpty String grantedUsername,
+			@PathVariable(name = "id") @Parameter(description = "proxy ID") Long id) {
+		final var proxy = getProxy(id, grantingUsername, grantedUsername);
 		proxyRepo.delete(proxy);
 		return ResponseEntity.accepted().build();
 	}
 
-	private Proxy getProxy(Long id, String grantingUserSubject, String grantedUserSubject) {
-		final var proxy = proxyRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException(String.format("No user proxy with ID %s", id)));
+	private Proxy getProxy(Long id, String grantingUsername, String grantedUsername) {
+		final var proxy = proxyRepo.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException(String.format("No user proxy with ID %s", id)));
 
-		if (!proxy.getGrantingUser().getSubject().equals(grantingUserSubject) || !proxy.getGrantedUser().getSubject().equals(grantedUserSubject)) {
+		if (!proxy.getGrantingUser().getPreferredUsername().equals(grantingUsername)
+				|| !proxy.getGrantedUser().getPreferredUsername().equals(grantedUsername)) {
 			throw new ProxyUsersUnmodifiableException();
 		}
 
 		return proxy;
 	}
 
-	private User getUser(String subject) {
-		return userRepo.findBySubject(subject).orElseThrow(() -> new ResourceNotFoundException(String.format("No user with subject %s", subject)));
+	private User getUser(String preferredUsername) {
+		return userRepo.findByPreferredUsername(preferredUsername).orElseThrow(() -> new ResourceNotFoundException(
+				String.format("No user with preferredUsername %s", preferredUsername)));
 	}
 
 	private List<Proxy> processOverlaps(Proxy proxy) {
-		final var proxiesToCheck =
-				proxyRepo
-						.findAll(
-								ProxyRepository
-										.searchSpec(
-												Optional.of(proxy.getGrantingUser().getSubject()),
-												Optional.of(proxy.getGrantedUser().getSubject()),
-												Optional.empty()));
+		final var proxiesToCheck = proxyRepo
+				.findAll(ProxyRepository.searchSpec(Optional.of(proxy.getGrantingUser().getPreferredUsername()),
+						Optional.of(proxy.getGrantedUser().getPreferredUsername()), Optional.empty()));
 		final var modifiedProxies = new ArrayList<Proxy>(proxiesToCheck.size());
 		proxiesToCheck.forEach(existing -> {
-			if (existing.getId() == proxy.getId()) {
+			if (Objects.equals(existing.getId(), proxy.getId())) {
 				// skip provided proxy
 			} else if (existing.getEnd() != null && existing.getEnd().before(proxy.getStart())) {
 				// skip existing ending before provided starts
@@ -1180,8 +1242,10 @@ public class UserController {
 				if (existing.getStart().after(proxy.getStart()) || existing.getStart().equals(proxy.getStart())) {
 					// any existing proxy starting after provided one is deleted
 					proxyRepo.delete(existing);
-				} else if (existing.getEnd() == null || existing.getEnd().after(proxy.getStart()) || existing.getEnd().equals(proxy.getStart())) {
-					// shorten any proxy ending after provided one starts (because of preceding condition, we know it overlaps: starts before provided)
+				} else if (existing.getEnd() == null || existing.getEnd().after(proxy.getStart())
+						|| existing.getEnd().equals(proxy.getStart())) {
+					// shorten any proxy ending after provided one starts (because of preceding
+					// condition, we know it overlaps: starts before provided)
 					existing.setEnd(new Date(proxy.getStart().getTime() - 1));
 					modifiedProxies.add(existing);
 				}
@@ -1308,12 +1372,12 @@ public class UserFixtures {
 	}
 
 	public static Map<String, User> all() {
-		return Stream.of(admin(), userA(), userB()).collect(Collectors.toMap(User::getSubject, u -> u));
+		return Stream.of(admin(), userA(), userB()).collect(Collectors.toMap(User::getPreferredUsername, u -> u));
 	}
 
 	public static Map<String, User> setUp(UserRepository userRepository) {
 		final var users = UserFixtures.all();
-		when(userRepository.findBySubject(anyString())).thenAnswer(invocation -> Optional.ofNullable(users.get(invocation.getArgument(0))));
+		when(userRepository.findByPreferredUsername(anyString())).thenAnswer(invocation -> Optional.ofNullable(users.get(invocation.getArgument(0))));
 		return users;
 	}
 }
@@ -1335,6 +1399,7 @@ import java.util.stream.Stream;
 
 import com.c4_soft.user_proxies.api.domain.Proxy;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
+import com.c4_soft.user_proxies.api.security.Permission;
 
 public class ProxyFixtures {
 
@@ -1343,17 +1408,17 @@ public class ProxyFixtures {
 				2L,
 				UserFixtures.userA(),
 				UserFixtures.userB(),
-				List.of("EDIT_PROXIES"),
+				List.of(Permission.values()),
 				Date.from(Instant.now().minus(1, ChronoUnit.DAYS)),
 				Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
 	}
 
 	private static Proxy userBToUserA() {
-		return new Proxy(2L, UserFixtures.userB(), UserFixtures.userA(), List.of(), Date.from(Instant.now().minus(1, ChronoUnit.DAYS)), null);
+		return new Proxy(2L, UserFixtures.userB(), UserFixtures.userA(), List.of(Permission.PROFILE_READ), Date.from(Instant.now().minus(1, ChronoUnit.DAYS)), null);
 	}
 
 	public static Map<String, List<Proxy>> all() {
-		final var proxiesByGrantingUser = Stream.of(userAToUserB(), userBToUserA()).collect(Collectors.groupingBy(p -> p.getGrantingUser().getSubject()));
+		final var proxiesByGrantingUser = Stream.of(userAToUserB(), userBToUserA()).collect(Collectors.groupingBy(p -> p.getGrantingUser().getPreferredUsername()));
 		for (final var proxiesUserProxies : proxiesByGrantingUser.entrySet()) {
 			for (final var proxy : proxiesUserProxies.getValue()) {
 				proxy.getGrantedUser().getGrantedProxies().add(proxy);
@@ -1408,8 +1473,9 @@ import com.c4_soft.user_proxies.api.domain.Proxy;
 import com.c4_soft.user_proxies.api.domain.User;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth.Grant;
+import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth.Grant;
 
 @WebMvcTest(controllers = { UserController.class })
 @ControllerTest
@@ -1442,98 +1508,98 @@ class UserControllerTests {
 
 	// @formatter:off
 	// Test access to UserController::retrieveGrantedProxies which is secured with:
-	/** #token.subject == #subject or hasAnyAuthority('AUTHORIZATION_SERVER', 'USERS_ADMIN') or #token.allows(#subject, 'READ_PROXIES') */
+	/** is(#username) or hasAnyAuthority('AUTHORIZATION_SERVER', 'USERS_ADMIN') or onBehalfOf(#username).can('READ_PROXIES') */
 	// @formatter:on
 	@Test
 	void whenAnonymousThenUnauthorized() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isUnauthorized());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	@WithProxiesAuth()
+	@ProxiesAuth()
 	void whenAuthenticatedWithoutRequiredAuthoritiesNorProxiesThenForbidden() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "TOKEN_ISSUER")
+	@ProxiesAuth(authorities = "TOKEN_ISSUER")
 	void whenAuthenticatedAsAuthorizationServerThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "USERS_ADMIN")
+	@ProxiesAuth(authorities = "USERS_ADMIN")
 	void whenAuthenticatedAsAdminThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "machin"))
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "machin"))
 	void whenAuthenticatedAsProxiedUserThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "READ_PROXIES" }) })
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROXIES_READ }) })
 	void whenGrantedWithEditProxiesForProxiedUserThenCanGetUserProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "DO_SOMETHING" }), // right granting user but wrong grant
-			@Grant(onBehalfOf = "bidule", can = { "READ_PROXIES" }) }) // right grant but wrong granting user
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }), // right granting user but wrong grant
+			@Grant(onBehalfOf = "bidule", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) }) // right grant but wrong granting user
 	void whenNotGrantedWithEditProxiesThenForbidden() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granted", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isForbidden());
 	}
 
 	// @formatter:off
 	// Test access to UserController::retrieveGrantingProxies which is secured with:
-	/** #token.subject == #subject or hasAnyAuthority('USERS_ADMIN') or #token.allows(#subject, 'READ_PROXIES') */
+	/** is(#username) or hasAnyAuthority('USERS_ADMIN') or onBehalfOf(#username).can('READ_PROXIES') */
 	// @formatter:on
 	@Test
 	void whenAnonymousThenUnauthorizedToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isUnauthorized());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	@WithProxiesAuth()
+	@ProxiesAuth()
 	void whenAuthenticatedWithoutRequiredAuthoritiesNorProxiesThenForbiddenToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "AUTHORIZATION_SERVER")
+	@ProxiesAuth(authorities = "AUTHORIZATION_SERVER")
 	void whenAuthenticatedAsAuthorizationServerThenForbiddenToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = "USERS_ADMIN")
+	@ProxiesAuth(authorities = "USERS_ADMIN")
 	void whenAuthenticatedAsAdminThenCanGetUserProxiesToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "machin"))
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "machin"))
 	void whenAuthenticatedAsProxiedUserThenCanGetUserProxiesToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "READ_PROXIES" }) })
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) })
 	void whenGrantedWithEditProxiesForProxiedUserThenCanGetUserProxiesToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isOk());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = {}, claims = @OpenIdClaims(sub = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "DO_SOMETHING" }), // right granting user but wrong grant
-			@Grant(onBehalfOf = "bidule", can = { "READ_PROXIES" }) }) // right grant but wrong granting user
+	@ProxiesAuth(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }), // right granting user but wrong grant
+			@Grant(onBehalfOf = "bidule", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) }) // right grant but wrong granting user
 	void whenNotGrantedWithEditProxiesThenForbiddenToGrantingProxies() throws Exception {
-		mockMvc.get("/users/{grantingUserSubject}/proxies/granting", "machin").andExpect(status().isForbidden());
+		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
 
 }
@@ -1720,7 +1786,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	@Override
 	public String getHelpText() {
-		return "Adds a \"proxies\" private claim containing a map of authorizations the user has to act on behalf of other users (one collection of grant IDs per user subject)";
+		return "Adds a \"proxies\" private claim containing a map of authorizations the user has to act on behalf of other users (one collection of grant IDs per user preferredUsername)";
 	}
 
 	@Override
@@ -1730,7 +1796,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	private <T extends IDToken> T transform(T token, ProtocolMapperModel mappingModel, KeycloakSession keycloakSession,
 			UserSessionModel userSession, ClientSessionContext clientSessionCtx) {
-		final var proxies = getGrantsByProxiedUserSubject(mappingModel, token);
+		final var proxies = getGrantsByProxiedUsername(mappingModel, token);
 		token.getOtherClaims().put("proxies", proxies);
 		setClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);
 		return token;
@@ -1741,14 +1807,14 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		return webClientByBaseUri.computeIfAbsent(baseUri, (String k) -> WebClient.builder().baseUrl(baseUri).build());
 	}
 
-	private Map<String, List<String>> getGrantsByProxiedUserSubject(ProtocolMapperModel mappingModel, IDToken token) {
+	private Map<String, List<String>> getGrantsByProxiedUsername(ProtocolMapperModel mappingModel, IDToken token) {
 		final var baseUri = mappingModel.getConfig().get(PROXIES_SERVICE_BASE_URI);
 		try {
 			final Optional<ProxyDto[]> dtos = Optional.ofNullable(getWebClient(baseUri).get()
-					.uri("/{userSubject}/proxies/granted", token.getSubject()).headers(headers -> setBearer(headers, mappingModel)).retrieve().bodyToMono(ProxyDto[].class).block());
+					.uri("/{username}/proxies/granted", token.getPreferredUsername()).headers(headers -> setBearer(headers, mappingModel)).retrieve().bodyToMono(ProxyDto[].class).block());
 
 			return dtos.map(Stream::of)
-					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUserSubject, ProxyDto::getGrants)))
+					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUsername, ProxyDto::getGrants)))
 					.orElse(Map.of());
 		} catch (final Exception e) {
 			log.error("Failed to fetch user proxies: {}", e);
@@ -1826,10 +1892,10 @@ public class GreetController {
 						auth.getProxies().keySet().stream().collect(Collectors.joining(", ", "[", "]")));
 	}
 
-	@GetMapping("/{otherSubject}")
-	@PreAuthorize("isGranted(#otherSubject, 'greet')")
-	public String getGreetingOnBehalfOf(@PathVariable("otherSubject") String otherSubject, ProxiesAuthentication auth) {
-		return String.format("Hi %s!", otherSubject);
+	@GetMapping("/{username}")
+	@PreAuthorize("is(#username) or isNice() or onBehalfOf(#username).can('GREET')")
+	public String getGreetingOnBehalfOf(@PathVariable("username") String username, ProxiesAuthentication auth) {
+		return String.format("Hi %s!", username);
 	}
 }
 ```
@@ -1885,8 +1951,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
 import com.c4_soft.user_proxies.api.security.WebSecurityConfig;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth;
-import com.c4_soft.user_proxies.api.security.WithProxiesAuth.Grant;
+import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth;
+import com.c4_soft.user_proxies.api.security.ProxiesAuth.Grant;
 
 @WebMvcTest(GreetController.class)
 @AutoConfigureSecurityAddons
@@ -1897,8 +1964,8 @@ class GreetControllerTest {
 	MockMvc mockMvc;
 
 	@Test
-	@WithProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
-			@Grant(onBehalfOf = "machin", can = { "truc", "bidule" }),
+	@ProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
+			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }),
 			@Grant(onBehalfOf = "chose") })
 	void testGreet() throws Exception {
 		mockMvc
@@ -1908,15 +1975,28 @@ class GreetControllerTest {
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
-			@Grant(onBehalfOf = "ch4mpy", can = { "greet" }) })
+	@ProxiesAuth(authorities = { "ROLE_NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {})
+	void testWithNiceAuthority() throws Exception {
+		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi ch4mpy!"));
+	}
+
+	@Test
+	@ProxiesAuth(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
+			@Grant(onBehalfOf = "ch4mpy", can = { Permission.PROFILE_READ, Permission.GREET }) })
 	void testWithProxy() throws Exception {
 		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi ch4mpy!"));
 	}
 
 	@Test
-	@WithProxiesAuth(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"))
-	void testWithoutProxy() throws Exception {
+	@ProxiesAuth(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
+			@Grant(onBehalfOf = "ch4mpy", can = { Permission.PROFILE_READ, Permission.GREET }) })
+	void testWithHimself() throws Exception {
+		mockMvc.perform(get("/greet/Tonton Pirate").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi Tonton Pirate!"));
+	}
+
+	@Test
+	@ProxiesAuth(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"))
+	void testWithoutNiceAuthorityNorProxyNorHimself() throws Exception {
 		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isForbidden());
 	}
 
