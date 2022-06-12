@@ -10,14 +10,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.security.test.context.support.TestExecutionEvent;
 import org.springframework.security.test.context.support.WithSecurityContext;
 
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcToken;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.AbstractAnnotatedAuthenticationBuilder;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 
@@ -29,10 +27,10 @@ import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 public @interface ProxiesAuth {
 
 	@AliasFor("authorities")
-	String[] value() default { "ROLE_USER" };
+	String[] value() default {};
 
 	@AliasFor("value")
-	String[] authorities() default { "ROLE_USER" };
+	String[] authorities() default {};
 
 	OpenIdClaims claims() default @OpenIdClaims();
 
@@ -49,7 +47,7 @@ public @interface ProxiesAuth {
 
 		String onBehalfOf();
 
-		Permission[] can() default {};
+		Permission[] can() default { Permission.PROFILE_READ };
 	}
 
 	public static final class AuthenticationFactory
@@ -65,11 +63,7 @@ public @interface ProxiesAuth {
 			}
 			claims.put("proxies", proxiesclaim);
 
-			final var token = new OidcToken(claims);
-			final var authorities = super.authorities(annotation.authorities());
-			final var proxies = proxiesclaim.entrySet().stream()
-					.map(e -> new Proxy(e.getKey(), token.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
-			return new ProxiesAuthentication(token, authorities, proxies, annotation.bearerString());
+			return new ProxiesAuthentication(new ProxiesClaimSet(claims), super.authorities(annotation.authorities()), annotation.bearerString());
 		}
 	}
 }

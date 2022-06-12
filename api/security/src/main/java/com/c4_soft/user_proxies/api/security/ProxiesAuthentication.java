@@ -1,35 +1,27 @@
 package com.c4_soft.user_proxies.api.security;
 
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.security.core.GrantedAuthority;
 
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcAuthentication;
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcToken;
+import com.c4_soft.springaddons.security.oauth2.OAuthentication;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ProxiesAuthentication extends OidcAuthentication<OidcToken> {
+public class ProxiesAuthentication extends OAuthentication<ProxiesClaimSet> {
 	private static final long serialVersionUID = 6856299734098317908L;
 
-	private final Map<String, Proxy> proxies;
-
-	public ProxiesAuthentication(OidcToken token, Collection<? extends GrantedAuthority> authorities, Collection<Proxy> proxies, String bearerString) {
-		super(token, authorities, bearerString);
-		this.proxies = Collections.unmodifiableMap(proxies.stream().collect(Collectors.toMap(Proxy::getProxiedUsername, p -> p)));
+	public ProxiesAuthentication(ProxiesClaimSet claims, Collection<? extends GrantedAuthority> authorities, String bearerString) {
+		super(claims, authorities, bearerString);
 	}
 	
 	@Override
 	public String getName() {
-		return getToken().getPreferredUsername();
+		return getClaims().getPreferredUsername();
 	}
 	
 	public boolean hasName(String preferredUsername) {
@@ -37,6 +29,6 @@ public class ProxiesAuthentication extends OidcAuthentication<OidcToken> {
 	}
 
 	public Proxy getProxyFor(String proxiedUsername) {
-		return this.proxies.getOrDefault(proxiedUsername, new Proxy(proxiedUsername, getToken().getPreferredUsername(), Set.of()));
+		return this.getClaims().getProxyFor(proxiedUsername);
 	}
 }

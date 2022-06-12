@@ -2,7 +2,6 @@ package com.c4_soft.user_proxies.api.security;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 import lombok.Data;
@@ -18,7 +17,7 @@ public class Proxy implements Serializable {
 	public Proxy(String proxiedUsername, String tenantUsername, Set<Permission> permissions) {
 		this.proxiedUsername = proxiedUsername;
 		this.tenantUsername = tenantUsername;
-		this.permissions = Collections.unmodifiableSet(new HashSet<>(permissions));
+		this.permissions = Collections.unmodifiableSet(permissions);
 	}
 
 	public boolean can(Permission permission) {

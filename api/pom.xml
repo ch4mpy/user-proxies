@@ -32,7 +32,7 @@
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-		<com.c4-soft.springaddons.version>4.3.5</com.c4-soft.springaddons.version>
+		<com.c4-soft.springaddons.version>4.4.0</com.c4-soft.springaddons.version>
 		<hibernate-enhance-maven-plugin.version>5.6.7.Final</hibernate-enhance-maven-plugin.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<org.mapstruct.version>1.5.0.RC1</org.mapstruct.version>

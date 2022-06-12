@@ -19,7 +19,7 @@ mvn archetype:generate \
   -DarchetypeCatalog=remote \
   -DarchetypeGroupId=com.c4-soft.springaddons \
   -DarchetypeArtifactId=spring-webmvc-archetype-multimodule \
-  -DarchetypeVersion=4.3.5 \
+  -DarchetypeVersion=4.4.0 \
   -DgroupId=com.c4-soft.user-proxies \
   -DartifactId=api \
   -Dversion=1.0.0-SNAPSHOT \
@@ -337,7 +337,7 @@ Also, in `user-proxies-api` replace dependencies on `spring-security-oauth2-webm
 ## `security` module
 This module will hold shared security configuration
 
-Define `Proxy` and `ProxiesAuthentication` classes:
+Define what `Permission` and `Proxy` are:
 ```java
 package com.c4_soft.user_proxies.api.security;
 
@@ -350,7 +350,6 @@ package com.c4_soft.user_proxies.api.security;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 import lombok.Data;
@@ -366,7 +365,7 @@ public class Proxy implements Serializable {
 	public Proxy(String proxiedUsername, String tenantUsername, Set<Permission> permissions) {
 		this.proxiedUsername = proxiedUsername;
 		this.tenantUsername = tenantUsername;
-		this.permissions = Collections.unmodifiableSet(new HashSet<>(permissions));
+		this.permissions = Collections.unmodifiableSet(permissions);
 	}
 
 	public boolean can(Permission permission) {
@@ -378,39 +377,77 @@ public class Proxy implements Serializable {
 	}
 }
 ```
+
+Then extend `OpenidClaimSet` to add proxies private-claim parsing:
 ```java
 package com.c4_soft.user_proxies.api.security;
 
-import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.springframework.security.core.GrantedAuthority;
-
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcAuthentication;
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcToken;
+import com.c4_soft.springaddons.security.oauth2.OpenidClaimSet;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ProxiesAuthentication extends OidcAuthentication<OidcToken> {
-	private static final long serialVersionUID = 6856299734098317908L;
+public class ProxiesClaimSet extends OpenidClaimSet {
+	private static final long serialVersionUID = 38784488788537111L;
 
 	private final Map<String, Proxy> proxies;
 
-	public ProxiesAuthentication(OidcToken token, Collection<? extends GrantedAuthority> authorities, Collection<Proxy> proxies, String bearerString) {
-		super(token, authorities, bearerString);
-		this.proxies = Collections.unmodifiableMap(proxies.stream().collect(Collectors.toMap(Proxy::getProxiedUsername, p -> p)));
+	public ProxiesClaimSet(Map<String, Object> claims) {
+		super(claims);
+		this.proxies = getProxies(this).stream().collect(Collectors.toMap(Proxy::getProxiedUsername, p -> p));
+	}
+
+	private static List<Proxy> getProxies(OpenidClaimSet claims) {
+		@SuppressWarnings("unchecked")
+		final var proxiesClaim = (Map<String, List<String>>) claims.get("proxies");
+		if (proxiesClaim == null) {
+			return List.of();
+		}
+		return proxiesClaim.entrySet().stream().map(e -> new Proxy(e.getKey(), claims.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
+	}
+
+	public Proxy getProxyFor(String username) {
+		return proxies.getOrDefault(username, new Proxy(username, getName(), Set.of()));
+	}
+}
+```
+
+Then extends `OAuthentication<ProxiesClaimSet>` to:
+- override `getName()`  to return preferred_username instead of subject
+- add `hasName(String preferredUsername)` to check if current username is provided one
+- add `Proxy getProxyFor(String proxiedUsername)` to ease access to a given proxy from ProxiesClaimSet:
+```java
+package com.c4_soft.user_proxies.api.security;
+
+import java.util.Collection;
+import java.util.Objects;
+
+import org.springframework.security.core.GrantedAuthority;
+
+import com.c4_soft.springaddons.security.oauth2.OAuthentication;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class ProxiesAuthentication extends OAuthentication<ProxiesClaimSet> {
+	private static final long serialVersionUID = 6856299734098317908L;
+
+	public ProxiesAuthentication(ProxiesClaimSet claims, Collection<? extends GrantedAuthority> authorities, String bearerString) {
+		super(claims, authorities, bearerString);
 	}
 	
 	@Override
 	public String getName() {
-		return getToken().getPreferredUsername();
+		return getClaims().getPreferredUsername();
 	}
 	
 	public boolean hasName(String preferredUsername) {
@@ -418,12 +455,12 @@ public class ProxiesAuthentication extends OidcAuthentication<OidcToken> {
 	}
 
 	public Proxy getProxyFor(String proxiedUsername) {
-		return this.proxies.getOrDefault(proxiedUsername, new Proxy(proxiedUsername, getToken().getPreferredUsername(), Set.of()));
+		return this.getClaims().getProxyFor(proxiedUsername);
 	}
 }
 ```
 
-Update WebSecurityConfig to provide an authentication converter returning ProxiesAuthentication instances insteadof default `OidcAuthentication<OidcToken>`.
+Update WebSecurityConfig to provide an authentication converter returning ProxiesAuthentication instances instead of default `OAuthentication<OpenidClaimSet>`.
 
 Last, define a `MethodSecurityExpressionHandler` bean to add proxies DSL to security SpEL
 
@@ -431,51 +468,21 @@ This gives following security-config:
 ```java
 package com.c4_soft.user_proxies.api.security;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 
 import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2AuthenticationConverter;
-import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2OidcTokenConverter;
-import com.c4_soft.springaddons.security.oauth2.config.JwtGrantedAuthoritiesConverter;
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcToken;
+import com.c4_soft.springaddons.security.oauth2.config.Jwt2AuthoritiesConverter;
 import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpressionHandler;
 
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
-
-	public interface OidcToken2ProxiesConverter extends Converter<OidcToken, Collection<Proxy>> {
-	}
-
-	@Bean
-	public OidcToken2ProxiesConverter proxiesConverter() {
-		return token -> {
-			@SuppressWarnings("unchecked")
-			final var proxiesClaim = (Map<String, List<String>>) token.getClaims().get("proxies");
-			if (proxiesClaim == null) {
-				return List.of();
-			}
-			return proxiesClaim.entrySet().stream().map(e -> new Proxy(e.getKey(), token.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
-		};
-	}
 	
 	@Bean
 	public SynchronizedJwt2AuthenticationConverter<ProxiesAuthentication> authenticationConverter(
-			JwtGrantedAuthoritiesConverter authoritiesConverter,
-			SynchronizedJwt2OidcTokenConverter<OidcToken> tokenConverter,
-			OidcToken2ProxiesConverter proxiesConverter) {
-		return jwt ->  {
-            final var token = tokenConverter.convert(jwt);
-            final var authorities = authoritiesConverter.convert(jwt);
-            final var proxies = proxiesConverter.convert(token);
-            return new ProxiesAuthentication(token, authorities, proxies, jwt.getTokenValue());
-        };
+			Jwt2AuthoritiesConverter authoritiesConverter) {
+		return jwt -> new ProxiesAuthentication(new ProxiesClaimSet(jwt.getClaims()), authoritiesConverter.convert(jwt), jwt.getTokenValue());
 	}
 	
 	@Bean
@@ -524,14 +531,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.security.test.context.support.TestExecutionEvent;
 import org.springframework.security.test.context.support.WithSecurityContext;
 
-import com.c4_soft.springaddons.security.oauth2.oidc.OidcToken;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.AbstractAnnotatedAuthenticationBuilder;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 
@@ -543,10 +548,10 @@ import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 public @interface ProxiesAuth {
 
 	@AliasFor("authorities")
-	String[] value() default { "ROLE_USER" };
+	String[] value() default {};
 
 	@AliasFor("value")
-	String[] authorities() default { "ROLE_USER" };
+	String[] authorities() default {};
 
 	OpenIdClaims claims() default @OpenIdClaims();
 
@@ -563,7 +568,7 @@ public @interface ProxiesAuth {
 
 		String onBehalfOf();
 
-		Permission[] can() default {};
+		Permission[] can() default { Permission.PROFILE_READ };
 	}
 
 	public static final class AuthenticationFactory
@@ -579,11 +584,7 @@ public @interface ProxiesAuth {
 			}
 			claims.put("proxies", proxiesclaim);
 
-			final var token = new OidcToken(claims);
-			final var authorities = super.authorities(annotation.authorities());
-			final var proxies = proxiesclaim.entrySet().stream()
-					.map(e -> new Proxy(e.getKey(), token.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
-			return new ProxiesAuthentication(token, authorities, proxies, annotation.bearerString());
+			return new ProxiesAuthentication(new ProxiesClaimSet(claims), super.authorities(annotation.authorities()), annotation.bearerString());
 		}
 	}
 }
@@ -2040,9 +2041,9 @@ public class GreetController {
 		return String
 				.format(
 						"Hi %s! You are granted with: %s and can proxy: %s.",
-						auth.getToken().getPreferredUsername(),
+						auth.getClaims().getPreferredUsername(),
 						auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.joining(", ", "[", "]")),
-						auth.getProxies().keySet().stream().collect(Collectors.joining(", ", "[", "]")));
+						auth.getClaims().getProxies().keySet().stream().collect(Collectors.joining(", ", "[", "]")));
 	}
 
 	@GetMapping("/{username}")
