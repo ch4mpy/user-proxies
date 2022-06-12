@@ -129,6 +129,7 @@ public class UserController {
 			@Valid @RequestBody ProxyEditDto dto) {
 		final var proxy = getProxy(id, grantingUsername, grantedUsername);
 		proxyMapper.update(proxy, dto);
+		proxy.allow(Permission.PROFILE_READ);
 		proxyRepo.saveAll(processOverlaps(proxy));
 		return ResponseEntity.accepted().build();
 	}

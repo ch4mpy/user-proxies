@@ -2,7 +2,7 @@
 
 We'll build a maven project with a few modules:
 - a spring-boot resource-server to expose and manage user proxies stored with JPA
-- a keycloak mapper which will retrieve user proxies from preceding web-service and add it to access & ID tokens
+- a Keycloak mapper which will retrieve user proxies from preceding web-service and add it to access & ID tokens
 - libraries shared between modules
 - a second resource server serving as secured micro-service sample
 
@@ -1612,7 +1612,11 @@ com.c4-soft.springaddons.test.web.default-charset=utf-8
 ```
 
 ## Keycloak mapper
+We actually have two concerns here:
+- retrieve proxies from user-proxies-api (consume a web-service)
+- add retrieved proxies to Keycloak tokens
 
+### Keycloak mapper project structure
 Two resources are required:
 - `src/main/resources/META-INF/jboss-deployment-structure.xml`
 ```xml
@@ -1629,7 +1633,208 @@ Two resources are required:
 com.c4_soft.user_proxies.api.keycloak.ProxiesMapper
 ```
 
-Then we'll need a DTO for Keycloak token response:
+Here is pom with 
+- required Keycloak dependencies 
+- spring's WebClient
+- maven shade plugin
+```xml
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.c4-soft.user-proxies</groupId>
+		<artifactId>api</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+    <groupId>com.c4-soft.user-proxies.api</groupId>
+	<artifactId>proxies-keycloak-mapper</artifactId>
+	<packaging>jar</packaging>
+	<name>proxies-keycloak-mapper</name>
+	<description>Keycloak mapper to add "proxies" private claim to tokens</description>
+
+	<properties>
+		<keycloak.version>18.0.0</keycloak.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+            <groupId>com.c4-soft.user-proxies.api</groupId>
+            <artifactId>dtos</artifactId>
+		</dependency>
+
+		<!-- provided keycloak dependencies -->
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-server-spi</artifactId>
+			<version>${keycloak.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-server-spi-private</artifactId>
+			<version>${keycloak.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-services</artifactId>
+			<version>${keycloak.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>ch.qos.logback</groupId>
+					<artifactId>logback-classic</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+	</dependencies>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<!-- Run shade goal on package phase -->
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
+```
+
+### `user-proxies-api` web-client
+We'll start with a web-client with no dependency on Keycloak, just in case we'd like to switch authorization-server later on:
+```java
+package com.c4_soft.user_proxies.api.keycloak;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import com.c4_soft.user_proxies.api.web.dto.ProxyDto;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class UserProxiesClient {
+
+	private static final Map<UserProxiesClientConfig, UserProxiesClient> instances = new HashMap<>();
+
+	private final UserProxiesClientConfig config;
+	private final WebClient tokenWebClient;
+	private final WebClient userProxiesWebClient;
+	private long expiresAt = 0L;
+	private Optional<TokenResponseDto> token = Optional.empty();
+
+	private UserProxiesClient(UserProxiesClientConfig config) {
+		this.config = config;
+		this.tokenWebClient = WebClient.builder().baseUrl(config.getAuthorizationUri()).build();
+		this.userProxiesWebClient = WebClient.builder().baseUrl(config.getUserProxiesBaseUri()).build();
+	}
+
+	public Map<String, List<String>> getPermissionsByProxiedUsernameFor(String tenantPreferredUsername) {
+		try {
+			final Optional<ProxyDto[]> dtos = Optional
+					.ofNullable(userProxiesWebClient.get().uri("/{username}/proxies/granted", tenantPreferredUsername)
+							.headers(this::setBearer).retrieve().bodyToMono(ProxyDto[].class).block());
+			dtos.ifPresent(d -> log.debug("Got proxies {}", Stream.of(d).toList()));
+			
+			return dtos.map(Stream::of)
+					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUsername, ProxyDto::getGrants)))
+					.orElse(Map.of());
+		} catch (final Exception e) {
+			log.error("Failed to fetch user proxies: {}", e);
+			return Map.of();
+		}
+	}
+
+	private HttpHeaders setBearer(HttpHeaders headers) {
+		getClientAccessToken().ifPresent(str -> {
+			headers.setBearerAuth(str);
+		});
+		return headers;
+	}
+
+	private Optional<String> getClientAccessToken() {
+		final var now = new Date().getTime();
+		if (expiresAt < now) {
+			try {
+				log.debug("Get client access token with {}", config.getUsername());
+				token = Optional.ofNullable(tokenWebClient.post().headers(headers -> {
+					headers.setBasicAuth(config.getUsername(), config.getPassword());
+					headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+				}).body(BodyInserters.fromFormData("scope", "openid profile").with("grant_type", "client_credentials"))
+						.retrieve().bodyToMono(TokenResponseDto.class).block());
+				expiresAt = now + 1000L * token.map(TokenResponseDto::getExpiresIn).orElse(0L);
+			} catch (final Exception e) {
+				log.error("Failed to get client authorization-token: {}", e);
+				return Optional.empty();
+			}
+		}
+		return token.map(TokenResponseDto::getAccessToken);
+	}
+
+	public static UserProxiesClient getInstance(UserProxiesClientConfig config) {
+		return instances.computeIfAbsent(config, c -> {
+			log.info("Building UserProxiesClient with {}", c);
+			return new UserProxiesClient(c);
+		});
+	}
+}
+```
+
+With this configuration class
+```java
+package com.c4_soft.user_proxies.api.keycloak;
+
+import java.io.Serializable;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+@AllArgsConstructor
+public class UserProxiesClientConfig implements Serializable {
+	private static final long serialVersionUID = 5417717966238971990L;
+
+	private final String authorizationUri;
+	private final String username;
+	private final String password;
+	private final String userProxiesBaseUri;
+}
+```
+
+And a DTO for OpenID token response:
 ```java
 package com.c4_soft.user_proxies.api.keycloak;
 
@@ -1668,18 +1873,13 @@ public class TokenResponseDto implements Serializable {
 }
 ```
 
-Last, the source for `com.c4_soft.user_proxies.keycloak.ProxiesMapper`:
+### Keycloak mapper to add private-claim to tokens
 ```java
 package com.c4_soft.user_proxies.api.keycloak;
 
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
@@ -1692,29 +1892,19 @@ import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.IDToken;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
-
-import com.c4_soft.user_proxies.api.web.dto.ProxyDto;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		implements OIDCAccessTokenMapper, OIDCIDTokenMapper, UserInfoTokenMapper {
-	private static final String AUTHORIZATION_SERVER_BASE_URI = "proxies-service.users-endpoint-uri";
+	private static final String AUTHORIZATION_URI = "proxies-service.authorization-uri";
 	private static final String PROXIES_SERVICE_CLIENT_SECRET = "proxies-service.client-secret";
 	private static final String PROXIES_SERVICE_CLIENT_NAME = "proxies-service.client-name";
 	private static final String PROVIDER_ID = "c4-soft.com";
-	private static final String PROXIES_SERVICE_BASE_URI = "proxies-service.authorization-uri";
+	private static final String PROXIES_SERVICE_BASE_URI = "proxies-service.users-endpoint-uri";
 
 	private final List<ProviderConfigProperty> configProperties = new ArrayList<>();
-
-	private final Map<String, WebClient> webClientByBaseUri = new HashMap<>();
-	private long expiresAt = 0L;
-	private Optional<TokenResponseDto> token = Optional.empty();
 
 	public ProxiesMapper() {
 		ProviderConfigProperty property;
@@ -1743,7 +1933,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		configProperties.add(property);
 
 		property = new ProviderConfigProperty();
-		property.setName(AUTHORIZATION_SERVER_BASE_URI);
+		property.setName(AUTHORIZATION_URI);
 		property.setLabel("Authorization endpoint");
 		property.setHelpText("Token end-point for authorizing proxies mapper");
 		property.setType(ProviderConfigProperty.STRING_TYPE);
@@ -1786,7 +1976,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	@Override
 	public String getHelpText() {
-		return "Adds a \"proxies\" private claim containing a map of authorizations the user has to act on behalf of other users (one collection of grant IDs per user preferredUsername)";
+		return "Adds a \"proxies\" private claim containing a map of permissions the \"tenant\" (current user) has to act on behalf of \"proxied\" users (one collection of permissions per proxied user preferred_username)";
 	}
 
 	@Override
@@ -1796,59 +1986,22 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	private <T extends IDToken> T transform(T token, ProtocolMapperModel mappingModel, KeycloakSession keycloakSession,
 			UserSessionModel userSession, ClientSessionContext clientSessionCtx) {
-		final var proxies = getGrantsByProxiedUsername(mappingModel, token);
-		token.getOtherClaims().put("proxies", proxies);
-		setClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);
+		final var clientConfig = UserProxiesClientConfig.builder()
+				.authorizationUri(mappingModel.getConfig().get(AUTHORIZATION_URI))
+				.username(mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_NAME))
+				.password(mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_SECRET))
+				.userProxiesBaseUri(mappingModel.getConfig().get(PROXIES_SERVICE_BASE_URI)).build();
+		final var who = Optional.ofNullable(userSession.getUser().getUsername()).orElse("");
+		if (who == null || who.length() == 0) {
+			log.warn("Empty username for user subject {}", token.getSubject());
+		} else {
+			log.debug("Call UserProxiesClient for {}", who);
+			final var proxies = UserProxiesClient.getInstance(clientConfig).getPermissionsByProxiedUsernameFor(who);
+			token.getOtherClaims().put("proxies", proxies);
+			setClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);
+		}
 		return token;
 
-	}
-
-	private WebClient getWebClient(String baseUri) {
-		return webClientByBaseUri.computeIfAbsent(baseUri, (String k) -> WebClient.builder().baseUrl(baseUri).build());
-	}
-
-	private Map<String, List<String>> getGrantsByProxiedUsername(ProtocolMapperModel mappingModel, IDToken token) {
-		final var baseUri = mappingModel.getConfig().get(PROXIES_SERVICE_BASE_URI);
-		try {
-			final Optional<ProxyDto[]> dtos = Optional.ofNullable(getWebClient(baseUri).get()
-					.uri("/{username}/proxies/granted", token.getPreferredUsername()).headers(headers -> setBearer(headers, mappingModel)).retrieve().bodyToMono(ProxyDto[].class).block());
-
-			return dtos.map(Stream::of)
-					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUsername, ProxyDto::getGrants)))
-					.orElse(Map.of());
-		} catch (final Exception e) {
-			log.error("Failed to fetch user proxies: {}", e);
-			return Map.of();
-		}
-	}
-	
-	private HttpHeaders setBearer(HttpHeaders headers, ProtocolMapperModel mappingModel) {
-		getClientAccessToken(mappingModel).ifPresent(str -> {
-			headers.setBearerAuth(str);
-			log.debug("Authorization: {}", headers.get(HttpHeaders.AUTHORIZATION));
-		});
-		return headers;
-	}
-
-	private Optional<String> getClientAccessToken(ProtocolMapperModel mappingModel) {
-		final var now = new Date().getTime();
-		final var baseUri = mappingModel.getConfig().get(AUTHORIZATION_SERVER_BASE_URI);
-		final var username = mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_NAME);
-		final var password = mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_SECRET);
-		if (expiresAt < now) {
-			try {
-				token = Optional.ofNullable(getWebClient(baseUri).post().headers(headers -> {
-					headers.setBasicAuth(username, password);
-					headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-				}).body(BodyInserters.fromFormData("scope", "openid").with("grant_type", "client_credentials"))
-						.retrieve().bodyToMono(TokenResponseDto.class).block());
-				expiresAt = now + 1000L * token.map(TokenResponseDto::getExpiresIn).orElse(0L);
-			} catch (final Exception e) {
-				log.error("Failed to get client authorization-token: {}", e);
-				return Optional.empty();
-			}
-		}
-		return token.map(TokenResponseDto::getAccessToken);
 	}
 }
 ```

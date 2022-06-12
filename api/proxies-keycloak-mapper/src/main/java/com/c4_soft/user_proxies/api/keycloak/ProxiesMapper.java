@@ -1,13 +1,8 @@
 package com.c4_soft.user_proxies.api.keycloak;
 
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
@@ -20,29 +15,19 @@ import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.IDToken;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
-
-import com.c4_soft.user_proxies.api.web.dto.ProxyDto;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		implements OIDCAccessTokenMapper, OIDCIDTokenMapper, UserInfoTokenMapper {
-	private static final String AUTHORIZATION_SERVER_BASE_URI = "proxies-service.users-endpoint-uri";
+	private static final String AUTHORIZATION_URI = "proxies-service.authorization-uri";
 	private static final String PROXIES_SERVICE_CLIENT_SECRET = "proxies-service.client-secret";
 	private static final String PROXIES_SERVICE_CLIENT_NAME = "proxies-service.client-name";
 	private static final String PROVIDER_ID = "c4-soft.com";
-	private static final String PROXIES_SERVICE_BASE_URI = "proxies-service.authorization-uri";
+	private static final String PROXIES_SERVICE_BASE_URI = "proxies-service.users-endpoint-uri";
 
 	private final List<ProviderConfigProperty> configProperties = new ArrayList<>();
-
-	private final Map<String, WebClient> webClientByBaseUri = new HashMap<>();
-	private long expiresAt = 0L;
-	private Optional<TokenResponseDto> token = Optional.empty();
 
 	public ProxiesMapper() {
 		ProviderConfigProperty property;
@@ -71,7 +56,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		configProperties.add(property);
 
 		property = new ProviderConfigProperty();
-		property.setName(AUTHORIZATION_SERVER_BASE_URI);
+		property.setName(AUTHORIZATION_URI);
 		property.setLabel("Authorization endpoint");
 		property.setHelpText("Token end-point for authorizing proxies mapper");
 		property.setType(ProviderConfigProperty.STRING_TYPE);
@@ -114,7 +99,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	@Override
 	public String getHelpText() {
-		return "Adds a \"proxies\" private claim containing a map of authorizations the user has to act on behalf of other users (one collection of grant IDs per user preferredUsername)";
+		return "Adds a \"proxies\" private claim containing a map of permissions the \"tenant\" (current user) has to act on behalf of \"proxied\" users (one collection of permissions per proxied user preferred_username)";
 	}
 
 	@Override
@@ -124,58 +109,21 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 	private <T extends IDToken> T transform(T token, ProtocolMapperModel mappingModel, KeycloakSession keycloakSession,
 			UserSessionModel userSession, ClientSessionContext clientSessionCtx) {
-		final var proxies = getGrantsByProxiedUsername(mappingModel, token);
-		token.getOtherClaims().put("proxies", proxies);
-		setClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);
+		final var clientConfig = UserProxiesClientConfig.builder()
+				.authorizationUri(mappingModel.getConfig().get(AUTHORIZATION_URI))
+				.username(mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_NAME))
+				.password(mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_SECRET))
+				.userProxiesBaseUri(mappingModel.getConfig().get(PROXIES_SERVICE_BASE_URI)).build();
+		final var who = Optional.ofNullable(userSession.getUser().getUsername()).orElse("");
+		if (who == null || who.length() == 0) {
+			log.warn("Empty username for user subject {}", token.getSubject());
+		} else {
+			log.debug("Call UserProxiesClient for {}", who);
+			final var proxies = UserProxiesClient.getInstance(clientConfig).getPermissionsByProxiedUsernameFor(who);
+			token.getOtherClaims().put("proxies", proxies);
+			setClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);
+		}
 		return token;
 
-	}
-
-	private WebClient getWebClient(String baseUri) {
-		return webClientByBaseUri.computeIfAbsent(baseUri, (String k) -> WebClient.builder().baseUrl(baseUri).build());
-	}
-
-	private Map<String, List<String>> getGrantsByProxiedUsername(ProtocolMapperModel mappingModel, IDToken token) {
-		final var baseUri = mappingModel.getConfig().get(PROXIES_SERVICE_BASE_URI);
-		try {
-			final Optional<ProxyDto[]> dtos = Optional.ofNullable(getWebClient(baseUri).get()
-					.uri("/{username}/proxies/granted", token.getPreferredUsername()).headers(headers -> setBearer(headers, mappingModel)).retrieve().bodyToMono(ProxyDto[].class).block());
-
-			return dtos.map(Stream::of)
-					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUsername, ProxyDto::getGrants)))
-					.orElse(Map.of());
-		} catch (final Exception e) {
-			log.error("Failed to fetch user proxies: {}", e);
-			return Map.of();
-		}
-	}
-	
-	private HttpHeaders setBearer(HttpHeaders headers, ProtocolMapperModel mappingModel) {
-		getClientAccessToken(mappingModel).ifPresent(str -> {
-			headers.setBearerAuth(str);
-			log.debug("Authorization: {}", headers.get(HttpHeaders.AUTHORIZATION));
-		});
-		return headers;
-	}
-
-	private Optional<String> getClientAccessToken(ProtocolMapperModel mappingModel) {
-		final var now = new Date().getTime();
-		final var baseUri = mappingModel.getConfig().get(AUTHORIZATION_SERVER_BASE_URI);
-		final var username = mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_NAME);
-		final var password = mappingModel.getConfig().get(PROXIES_SERVICE_CLIENT_SECRET);
-		if (expiresAt < now) {
-			try {
-				token = Optional.ofNullable(getWebClient(baseUri).post().headers(headers -> {
-					headers.setBasicAuth(username, password);
-					headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-				}).body(BodyInserters.fromFormData("scope", "openid").with("grant_type", "client_credentials"))
-						.retrieve().bodyToMono(TokenResponseDto.class).block());
-				expiresAt = now + 1000L * token.map(TokenResponseDto::getExpiresIn).orElse(0L);
-			} catch (final Exception e) {
-				log.error("Failed to get client authorization-token: {}", e);
-				return Optional.empty();
-			}
-		}
-		return token.map(TokenResponseDto::getAccessToken);
 	}
 }
