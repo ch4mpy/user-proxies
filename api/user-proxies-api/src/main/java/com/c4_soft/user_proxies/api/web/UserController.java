@@ -10,9 +10,11 @@ import java.util.Optional;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 
+import org.hibernate.validator.constraints.Length;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,7 +31,7 @@ import com.c4_soft.user_proxies.api.exceptions.ProxyUsersUnmodifiableException;
 import com.c4_soft.user_proxies.api.exceptions.ResourceNotFoundException;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 import com.c4_soft.user_proxies.api.web.dto.ProxyDto;
 import com.c4_soft.user_proxies.api.web.dto.ProxyEditDto;
 import com.c4_soft.user_proxies.api.web.dto.UserCreateDto;
@@ -40,6 +42,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
+@Validated
 @RestController
 @RequestMapping(path = "/users", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
 @RequiredArgsConstructor
@@ -56,6 +59,15 @@ public class UserController {
 	public List<UserDto> retrieveByEmailOrPreferredUsernamePart(
 			@RequestParam(name = "emailOrPreferredUsernamePart") @Parameter(description = "Mandatory. Case insensitive part of user e-mail or preferredUserName.") @NotEmpty String emailOrPreferredUsernamePart) {
 		return userRepo.findAll(UserRepository.searchSpec(emailOrPreferredUsernamePart)).stream().map(userMapper::toDto)
+				.toList();
+	}
+
+	@GetMapping("/usernames")
+	@Operation(description = "Retrieve usernames like")
+	@PreAuthorize("isAuthenticated()")
+	public List<String> retrieveUsernamesLike(
+			@RequestParam(name = "preferredUsernamePart") @Parameter(description = "Mandatory. Case insensitive part of preferredUserName.") @Length(min = 3) String preferredUsernamePart) {
+		return userRepo.findAll(UserRepository.searchSpec(preferredUsernamePart)).stream().map(User::getPreferredUsername)
 				.toList();
 	}
 
@@ -106,16 +118,17 @@ public class UserController {
 		final var proxy = Proxy.builder().grantingUser(getUser(grantingUsername)).grantedUser(getUser(grantedUsername))
 				.build();
 		proxyMapper.update(proxy, dto);
-		
-		// add required READ_PROFILE grant if missing (granted user should always be able to retrieve granting user profile basic data) 
-		proxy.allow(Permission.PROFILE_READ);
-		
+
+		// add required READ_PROFILE grant if missing (granted user should always be
+		// able to retrieve granting user profile basic data)
+		proxy.allow(Grant.PROFILE_READ);
+
 		// persist new proxy (and get a DB ID)
 		final var created = proxyRepo.save(proxy);
-		
+
 		// process and save proxies overlaps
 		proxyRepo.saveAll(processOverlaps(proxy));
-		
+
 		return ResponseEntity.created(URI.create(created.getId().toString())).build();
 	}
 
@@ -129,7 +142,7 @@ public class UserController {
 			@Valid @RequestBody ProxyEditDto dto) {
 		final var proxy = getProxy(id, grantingUsername, grantedUsername);
 		proxyMapper.update(proxy, dto);
-		proxy.allow(Permission.PROFILE_READ);
+		proxy.allow(Grant.PROFILE_READ);
 		proxyRepo.saveAll(processOverlaps(proxy));
 		return ResponseEntity.accepted().build();
 	}

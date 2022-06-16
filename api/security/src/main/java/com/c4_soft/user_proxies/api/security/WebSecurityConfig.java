@@ -10,15 +10,15 @@ import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpr
 
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
-	
-	@Bean
-	public SynchronizedJwt2AuthenticationConverter<ProxiesAuthentication> authenticationConverter(
-			Jwt2AuthoritiesConverter authoritiesConverter) {
-		return jwt -> new ProxiesAuthentication(new ProxiesClaimSet(jwt.getClaims()), authoritiesConverter.convert(jwt), jwt.getTokenValue());
-	}
-	
-	@Bean
-	public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-		return new GenericMethodSecurityExpressionHandler<>(ProxiesMethodSecurityExpressionRoot::new);
-	}
+
+    @Bean
+    SynchronizedJwt2AuthenticationConverter<ProxiesAuthentication> authenticationConverter(
+            Jwt2AuthoritiesConverter authoritiesConverter) {
+        return jwt -> new ProxiesAuthentication(new ProxiesClaimSet(jwt.getClaims()), authoritiesConverter.convert(jwt), jwt.getTokenValue());
+    }
+
+    @Bean
+    MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        return new GenericMethodSecurityExpressionHandler<>(ProxiesMethodSecurityExpressionRoot::new);
+    }
 }

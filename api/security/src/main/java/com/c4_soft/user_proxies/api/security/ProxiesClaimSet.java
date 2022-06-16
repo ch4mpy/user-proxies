@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.c4_soft.springaddons.security.oauth2.OpenidClaimSet;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -28,7 +29,7 @@ public class ProxiesClaimSet extends OpenidClaimSet {
 		if (proxiesClaim == null) {
 			return List.of();
 		}
-		return proxiesClaim.entrySet().stream().map(e -> new Proxy(e.getKey(), claims.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
+		return proxiesClaim.entrySet().stream().map(e -> new Proxy(e.getKey(), claims.getPreferredUsername(), e.getValue().stream().map(Grant::valueOf).collect(Collectors.toSet()))).toList();
 	}
 
 	public Proxy getProxyFor(String username) {

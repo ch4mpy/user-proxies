@@ -1,0 +1,32 @@
+{
+  "name": "user-proxies",
+  "version": "1.0.0",
+  "description": "",
+  "main": "karma.conf.js",
+  "scripts": {
+    "test": "ionic test",
+    "build": "ionic build",
+    "serve": "ionic serve --ssl --external --public-host=bravo-ch4mp -c=bravo-ch4mp",
+    "android": "ionic capacitor run android -l --ssl --external --public-host=bravo-ch4mp -c=bravo-ch4mp"
+  },
+  "keywords": [],
+  "author": "ch4mpy <ch4mp@c4-soft.com>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@awesome-cordova-plugins/core": "^5.43.0",
+    "@awesome-cordova-plugins/deeplinks": "^5.43.0",
+    "@capacitor/android": "3.5.1",
+    "@capacitor/app": "1.1.1",
+    "@capacitor/core": "3.5.1",
+    "@capacitor/haptics": "1.1.4",
+    "@capacitor/keyboard": "1.2.2",
+    "@capacitor/status-bar": "1.0.8",
+    "@ionic/angular": "^6.1.9",
+    "@ionic/storage-angular": "^3.0.6",
+    "ionic-plugin-deeplinks": "^1.0.24",
+    "ionicons": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "3.5.1"
+  }
+}

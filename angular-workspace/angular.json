@@ -1,44 +1,39 @@
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
-  "cli": {
-    "analytics": false
-  },
   "version": 1,
+  "defaultProject": "user-proxies",
   "newProjectRoot": "projects",
   "projects": {
-    "users-proxies": {
+    "user-proxies": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
           "inlineTemplate": true,
           "inlineStyle": true,
           "style": "scss"
-        },
-        "@schematics/angular:application": {
-          "strict": true
         }
       },
-      "root": "projects/users-proxies",
-      "sourceRoot": "projects/users-proxies/src",
+      "root": "projects/user-proxies",
+      "sourceRoot": "projects/user-proxies/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": "dist/users-proxies",
-            "index": "projects/users-proxies/src/index.html",
-            "main": "projects/users-proxies/src/main.ts",
-            "polyfills": "projects/users-proxies/src/polyfills.ts",
-            "tsConfig": "projects/users-proxies/tsconfig.app.json",
+            "outputPath": "dist/user-proxies",
+            "index": "projects/user-proxies/src/index.html",
+            "main": "projects/user-proxies/src/main.ts",
+            "polyfills": "projects/user-proxies/src/polyfills.ts",
+            "tsConfig": "projects/user-proxies/tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
-              "projects/users-proxies/src/favicon.ico",
-              "projects/users-proxies/src/assets",
-              { "glob": "**/*.svg", "input": "projects/users-proxies/node_modules/ionicons/dist/ionicons/svg", "output": "./svg" }
+              "projects/user-proxies/src/favicon.ico",
+              "projects/user-proxies/src/assets",
+              { "glob": "**/*.svg", "input": "projects/user-proxies/node_modules/ionicons/dist/ionicons/svg", "output": "./svg" }
             ],
             "styles": [
               "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
-              "projects/users-proxies/src/styles.scss"
+              "projects/user-proxies/src/styles.scss"
             ],
             "scripts": []
           },
@@ -58,8 +53,8 @@
               ],
               "fileReplacements": [
                 {
-                  "replace": "projects/users-proxies/src/environments/environment.ts",
-                  "with": "projects/users-proxies/src/environments/environment.prod.ts"
+                  "replace": "projects/user-proxies/src/environments/environment.ts",
+                  "with": "projects/user-proxies/src/environments/environment.prod.ts"
                 }
               ],
               "outputHashing": "all"
@@ -71,6 +66,20 @@
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
+            },
+            "bravo-ch4mp": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true,
+              "fileReplacements": [
+                {
+                  "replace": "projects/user-proxies/src/environments/environment.ts",
+                  "with": "projects/user-proxies/src/environments/environment.bravo-ch4mp.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -79,10 +88,13 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "users-proxies:build:production"
+              "browserTarget": "user-proxies:build:production"
             },
             "development": {
-              "browserTarget": "users-proxies:build:development",
+              "browserTarget": "user-proxies:build:development"
+            },
+            "bravo-ch4mp": {
+              "browserTarget": "user-proxies:build:bravo-ch4mp",
               "host": "bravo-ch4mp",
               "ssl": true,
               "sslCert": "C:/Users/ch4mp/.ssh/bravo-ch4mp_self_signed.crt",
@@ -94,48 +106,48 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "users-proxies:build"
+            "browserTarget": "user-proxies:build"
           }
         },
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "main": "projects/users-proxies/src/test.ts",
-            "polyfills": "projects/users-proxies/src/polyfills.ts",
-            "tsConfig": "projects/users-proxies/tsconfig.spec.json",
-            "karmaConfig": "projects/users-proxies/karma.conf.js",
+            "main": "projects/user-proxies/src/test.ts",
+            "polyfills": "projects/user-proxies/src/polyfills.ts",
+            "tsConfig": "projects/user-proxies/tsconfig.spec.json",
+            "karmaConfig": "projects/user-proxies/karma.conf.js",
             "inlineStyleLanguage": "scss",
             "assets": [
-              "projects/users-proxies/src/favicon.ico",
-              "projects/users-proxies/src/assets",
-              { "glob": "**/*.svg", "input": "projects/users-proxies/node_modules/ionicons/dist/ionicons/svg", "output": "./svg" }
+              "projects/user-proxies/src/favicon.ico",
+              "projects/user-proxies/src/assets",
+              { "glob": "**/*.svg", "input": "projects/user-proxies/node_modules/ionicons/dist/ionicons/svg", "output": "./svg" }
             ],
             "styles": [
               "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
-              "projects/users-proxies/src/styles.scss"
+              "projects/user-proxies/src/styles.scss"
             ],
             "scripts": []
           }
         }
       }
     },
-    "@c4-soft/proxies-api": {
+    "@c4-soft/user-proxies-api": {
       "projectType": "library",
-      "root": "projects/c4-soft/proxies-api",
-      "sourceRoot": "projects/c4-soft/proxies-api/src",
+      "root": "projects/c4-soft/user-proxies-api",
+      "sourceRoot": "projects/c4-soft/user-proxies-api/src",
       "prefix": "lib",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:ng-packagr",
           "options": {
-            "project": "projects/c4-soft/proxies-api/ng-package.json"
+            "project": "projects/c4-soft/user-proxies-api/ng-package.json"
           },
           "configurations": {
             "production": {
-              "tsConfig": "projects/c4-soft/proxies-api/tsconfig.lib.prod.json"
+              "tsConfig": "projects/c4-soft/user-proxies-api/tsconfig.lib.prod.json"
             },
             "development": {
-              "tsConfig": "projects/c4-soft/proxies-api/tsconfig.lib.json"
+              "tsConfig": "projects/c4-soft/user-proxies-api/tsconfig.lib.json"
             }
           },
           "defaultConfiguration": "production"
@@ -143,13 +155,15 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "main": "projects/c4-soft/proxies-api/src/test.ts",
-            "tsConfig": "projects/c4-soft/proxies-api/tsconfig.spec.json",
-            "karmaConfig": "projects/c4-soft/proxies-api/karma.conf.js"
+            "main": "projects/c4-soft/user-proxies-api/src/test.ts",
+            "tsConfig": "projects/c4-soft/user-proxies-api/tsconfig.spec.json",
+            "karmaConfig": "projects/c4-soft/user-proxies-api/karma.conf.js"
           }
         }
       }
     }
   },
-  "defaultProject": "users-proxies"
+  "cli": {
+    "analytics": false
+  }
 }

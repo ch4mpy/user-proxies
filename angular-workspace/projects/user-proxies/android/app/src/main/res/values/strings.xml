@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">user-proxies</string>
+    <string name="title_activity_main">user-proxies</string>
+    <string name="package_name">com.c4_soft.user_proxies.ui</string>
+    <string name="custom_url_scheme">com.c4_soft.user_proxies.ui</string>
+</resources>

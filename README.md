@@ -34,7 +34,7 @@ We'll assume you already
   * `Access Type`: confidential
   * `Service Accounts Enabled` and `Authorization Enabled`: on, other flows off
   * `Web Origins`: https://localhost:8443, https://{hostanme}:8443 where {hostname} should be replaced with the name of your machine on the network (who you generated self-signed certificate for)
-- enabled "client roles" mapper for both clients: under `Clients` > `user-proxies-client` > `Mappers` > `Add Builtin` and then edit configuration to set (same thing with `user-proxies-mapper`):
+- enabled "client roles" mapper for both clients: under `Clients` > [`user-proxies-client` | `user-proxies-mapper`] > `Mappers` > `Add Builtin` and then edit configuration to set:
   * `Client ID`: user-proxies
   * `Add to ID token`: on
   * `Add to access token`: on
@@ -50,7 +50,7 @@ As you might guess:
 ## Required tooling
 - JDK 17 or above
 - maven
-- node & npm. `nvm`(`-windows`) is probably your best option
+- node 14 & npm. `nvm`(`-windows`) is probably your best option
 - optionnaly, docker to build API native-image
 
 ## Sub-projects

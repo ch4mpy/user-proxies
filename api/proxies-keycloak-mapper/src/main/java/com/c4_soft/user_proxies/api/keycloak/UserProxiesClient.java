@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 import com.c4_soft.user_proxies.api.web.dto.ProxyDto;
 
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +43,7 @@ public class UserProxiesClient {
 			dtos.ifPresent(d -> log.debug("Got proxies {}", Stream.of(d).toList()));
 			
 			return dtos.map(Stream::of)
-					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUsername, ProxyDto::getGrants)))
+					.map(s -> s.collect(Collectors.toMap(ProxyDto::getGrantingUsername, dto -> dto.getGrants().stream().map(Grant::toString).toList())))
 					.orElse(Map.of());
 		} catch (final Exception e) {
 			log.error("Failed to fetch user proxies: {}", e);

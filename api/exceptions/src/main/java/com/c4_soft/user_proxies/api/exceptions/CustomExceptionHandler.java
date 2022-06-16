@@ -2,6 +2,8 @@ package com.c4_soft.user_proxies.api.exceptions;
 
 import java.util.stream.Collectors;
 
+import javax.validation.ConstraintViolationException;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -47,4 +49,17 @@ public class CustomExceptionHandler extends ResponseEntityExceptionHandler {
 	protected void handleProxyUsersUnmodifiable(ProxyUsersUnmodifiableException ex, WebRequest request) {
 		logger.info(ex.getMessage());
 	}
+	
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	@ExceptionHandler(BadRequestException.class)
+	protected void handleBadRequest(BadRequestException ex, WebRequest request) {
+		logger.info(ex.getMessage());
+	}
+	
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	@ExceptionHandler(ConstraintViolationException.class)
+	protected void handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
+		logger.info(ex.getMessage());
+	}
+	
 }

@@ -1,0 +1,6 @@
+{
+	"appId": "com.c4_soft.user_proxies.ui",
+	"appName": "user-proxies",
+	"webDir": "../../dist/user-proxies",
+	"bundledWebRuntime": false
+}

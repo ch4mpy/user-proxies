@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
 
+import com.c4_soft.user_proxies.api.web.dto.Grant;
+
 import lombok.Data;
 
 @Data
@@ -12,19 +14,19 @@ public class Proxy implements Serializable {
 	
 	private final String proxiedUsername;
 	private final String tenantUsername;
-	private final Set<Permission> permissions;
+	private final Set<Grant> permissions;
 
-	public Proxy(String proxiedUsername, String tenantUsername, Set<Permission> permissions) {
+	public Proxy(String proxiedUsername, String tenantUsername, Set<Grant> permissions) {
 		this.proxiedUsername = proxiedUsername;
 		this.tenantUsername = tenantUsername;
 		this.permissions = Collections.unmodifiableSet(permissions);
 	}
 
-	public boolean can(Permission permission) {
+	public boolean can(Grant permission) {
 		return permissions.contains(permission);
 	}
 
 	public boolean can(String permission) {
-		return this.can(Permission.valueOf(permission));
+		return this.can(Grant.valueOf(permission));
 	}
 }

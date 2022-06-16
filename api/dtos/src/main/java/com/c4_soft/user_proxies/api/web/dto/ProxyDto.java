@@ -30,7 +30,7 @@ public class ProxyDto implements Serializable {
 	private String grantedUsername;
 
 	@NotNull
-	private List<String> grants;
+	private List<Grant> grants;
 
 	@NotNull
 	private Long start;

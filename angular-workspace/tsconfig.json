@@ -3,9 +3,8 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
-      "@c4-soft/proxies-api": [
-        "dist/c4-soft/proxies-api/c4-soft-proxies-api",
-        "dist/c4-soft/proxies-api"
+      "@c4-soft/user-proxies-api": [
+        "dist/c4-soft/user-proxies-api"
       ]
     },
     "baseUrl": "./",
@@ -22,7 +21,7 @@
     "experimentalDecorators": true,
     "moduleResolution": "node",
     "importHelpers": true,
-    "target": "es2017",
+    "target": "es2020",
     "module": "es2020",
     "lib": [
       "es2020",
