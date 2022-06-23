@@ -8,6 +8,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { IonicModule } from '@ionic/angular';
@@ -15,9 +16,11 @@ import { ProxyCreationDialog } from './proxy-creation.dialog';
 import { UserAccountRoutingModule } from './user-account-routing.module';
 import { UserAccountScreen } from './user-account.screen';
 import { ProxyComponent } from './proxy.component';
+import { MatDialogModule } from '@angular/material/dialog';
+import { ProxyEditDialog } from './proxy-edit.dialog';
 
 @NgModule({
-  declarations: [UserAccountScreen, ProxyCreationDialog, ProxyComponent],
+  declarations: [UserAccountScreen, ProxyCreationDialog, ProxyEditDialog, ProxyComponent],
   imports: [
     CommonModule,
     FormsModule,
@@ -27,6 +30,8 @@ import { ProxyComponent } from './proxy.component';
     MatAutocompleteModule,
     MatButtonModule,
     MatCheckboxModule,
+    MatDatepickerModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,

@@ -55,12 +55,12 @@ import {
         </div>
         <div>
           <h2>Granted proxies</h2>
-          <app-proxy *ngFor="let p of grantedPorxies" [proxy]="p" (deleted)="onProxyDeleted($event)"></app-proxy>
+          <app-proxy *ngFor="let p of grantedPorxies" [proxy]="p" (deleted)="refresh()" (edited)="refresh()"></app-proxy>
         </div>
         <div>
           <h2>Granting proxies</h2>
-          <app-proxy *ngFor="let p of grantingPorxies" [proxy]="p" (deleted)="onProxyDeleted($event)"></app-proxy>
-          <div fxLayout="row">
+          <app-proxy *ngFor="let p of grantingPorxies" [proxy]="p" (deleted)="refresh()" (edited)="refresh()"></app-proxy>
+          <div fxLayout="row" style="margin-top: 1em;">
             <div fxFlex></div>
             <button mat-mini-fab (click)="openProxyCreationDlg()">
               <mat-icon>add</mat-icon>
@@ -91,10 +91,10 @@ export class UserAccountScreen implements OnInit {
   ) {}
 
   async ngOnInit() {
-    this._refresh();
+    this.refresh();
   }
 
-  private _refresh() {
+  refresh() {
     this.loading.wrap(
       Promise.all([
         lastValueFrom(
@@ -119,10 +119,6 @@ export class UserAccountScreen implements OnInit {
     const dlg = this.matDlg.open(ProxyCreationDialog, {
       data: new ProxyCreationDialogData(this.user.current.username),
     });
-    dlg.afterClosed().subscribe(() => this._refresh());
-  }
-
-  onProxyDeleted(proxy: ProxyDto) {
-    this._refresh()
+    dlg.afterClosed().subscribe(() => this.refresh());
   }
 }

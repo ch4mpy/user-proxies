@@ -16,12 +16,15 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HomeScreen } from './home.screen';
 import { NetworkErrorDialog } from './network-error.dialog';
+import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
+import { MatMomentDateModule, MAT_MOMENT_DATE_ADAPTER_OPTIONS, MomentDateAdapter, MomentDateModule } from '@angular/material-moment-adapter';
 
 @NgModule({
   declarations: [AppComponent, NetworkErrorDialog, HomeScreen],
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
+    MomentDateModule,
     HttpClientModule,
     MatAutocompleteModule,
     MatDialogModule,
@@ -36,6 +39,22 @@ import { NetworkErrorDialog } from './network-error.dialog';
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     Deeplinks,
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
+    {
+      provide: DateAdapter,
+      useClass: MomentDateAdapter,
+      deps: [MAT_DATE_LOCALE, MAT_MOMENT_DATE_ADAPTER_OPTIONS],
+    },
+    {
+      provide: MAT_DATE_FORMATS,
+      useValue: {
+        parse: {
+          dateInput: 'YYYY-MM-DD',
+        },
+        display: {
+          dateInput: 'YYYY-MM-DD',
+        },
+      },
+    },
   ],
   bootstrap: [AppComponent],
 })

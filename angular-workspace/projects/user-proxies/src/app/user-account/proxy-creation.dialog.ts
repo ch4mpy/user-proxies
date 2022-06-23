@@ -42,15 +42,39 @@ export class ProxyCreationDialogData {
           </mat-select>
         </mat-form-field>
       </div>
+      <div>
+        <mat-label>Validity</mat-label>
+        <mat-date-range-input [rangePicker]="validityPicker" appearance="fill">
+          <input
+            matStartDate
+            [formControl]="startCtrl"
+            #startInput
+            required
+            placeholder="Start date"
+          />
+          <input
+            matEndDate
+            [formControl]="endCtrl"
+            #endInput
+            placeholder="End date"
+          />
+        </mat-date-range-input>
+        <mat-hint>MM/DD/YYYY</mat-hint>
+        <mat-datepicker-toggle
+          matSuffix
+          [for]="validityPicker"
+        ></mat-datepicker-toggle>
+        <mat-date-range-picker #validityPicker></mat-date-range-picker>
+      </div>
       <div fxLayout="row" style="margin-left: 1em;">
         <button mat-mini-fab style="margin-left: auto;" (click)="create()">
           <mat-icon>save</mat-icon>
         </button>
       </div>
       <mat-progress-bar
-          mode="indeterminate"
-          *ngIf="load.isLoading$ | async"
-        ></mat-progress-bar>
+        mode="indeterminate"
+        *ngIf="load.isLoading$ | async"
+      ></mat-progress-bar>
     </div>
   `,
   styles: [],
@@ -58,14 +82,16 @@ export class ProxyCreationDialogData {
 export class ProxyCreationDialog implements OnInit {
   readonly PROFILE_READ_GRANT = ProxyDto.GrantsEnum.profileRead.toString();
 
-  usernameCtrl = new FormControl('', [
+  readonly usernameCtrl = new FormControl<string>('', [
     Validators.required,
     Validators.minLength(3),
   ]);
-  grantsCtrl = new FormControl(
+  readonly grantsCtrl = new FormControl<string[]>(
     [this.PROFILE_READ_GRANT],
     [Validators.required, Validators.minLength(1)]
   );
+  readonly startCtrl = new FormControl<Date>(new Date(), [Validators.required]);
+  readonly endCtrl = new FormControl<Date | null>(null, []);
 
   filteredUsername$!: Observable<string[]>;
 
@@ -93,20 +119,23 @@ export class ProxyCreationDialog implements OnInit {
   }
 
   create() {
-    if (this.usernameCtrl.invalid || this.grantsCtrl.invalid) {
+    if (this.usernameCtrl.invalid || this.grantsCtrl.invalid || this.startCtrl.invalid || !this.startCtrl.value) {
       return;
     }
-    this.load.wrap(
-      lastValueFrom(
-        this.usersApi.createProxy(
-          this.data.proxiedUsername,
-          this.usernameCtrl.value || '',
-          {
-            grants: this.grantsCtrl.value as ProxyEditDto.GrantsEnum[],
-            start: new Date().getTime(),
-          }
+    this.load
+      .wrap(
+        lastValueFrom(
+          this.usersApi.createProxy(
+            this.data.proxiedUsername,
+            this.usernameCtrl.value || '',
+            {
+              grants: this.grantsCtrl.value as ProxyEditDto.GrantsEnum[],
+              start: new Date(this.startCtrl.value).getTime(),
+              end: this.endCtrl?.value ? new Date(this.endCtrl?.value).getTime() : undefined
+            }
+          )
         )
       )
-    ).then(() => this.dialogRef.close())
+      .then(() => this.dialogRef.close());
   }
 }
