@@ -6,8 +6,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 
 import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2AuthenticationConverter;
 import com.c4_soft.springaddons.security.oauth2.config.Jwt2AuthoritiesConverter;
-import com.c4_soft.springaddons.security.oauth2.spring.ExpressionRootSupplier;
-import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpressionHandler;
+import com.c4_soft.springaddons.security.oauth2.spring.C4MethodSecurityExpressionHandler;
 
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
@@ -20,6 +19,6 @@ public class WebSecurityConfig {
 
     @Bean
     MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-        return new GenericMethodSecurityExpressionHandler(new ExpressionRootSupplier<>(ProxiesAuthentication.class, ProxiesMethodSecurityExpressionRoot::new));
+        return new C4MethodSecurityExpressionHandler(ProxiesMethodSecurityExpressionRoot::new);
     }
 }

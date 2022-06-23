@@ -1,18 +1,19 @@
 package com.c4_soft.user_proxies.api.security;
 
-import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpressionRoot;
+import java.util.Objects;
+import java.util.Set;
 
-final class ProxiesMethodSecurityExpressionRoot extends GenericMethodSecurityExpressionRoot<ProxiesAuthentication> {
-	public ProxiesMethodSecurityExpressionRoot() {
-		super(ProxiesAuthentication.class);
-	}
+import com.c4_soft.springaddons.security.oauth2.spring.C4MethodSecurityExpressionRoot;
+
+final class ProxiesMethodSecurityExpressionRoot extends C4MethodSecurityExpressionRoot {
 
 	public boolean is(String preferredUsername) {
-		return getAuth().hasName(preferredUsername);
+		return Objects.equals(getAuthentication().getName(), preferredUsername);
 	}
 
 	public Proxy onBehalfOf(String proxiedUsername) {
-		return getAuth().getProxyFor(proxiedUsername);
+		return get(ProxiesAuthentication.class).map(a -> a.getProxyFor(proxiedUsername))
+				.orElse(new Proxy(proxiedUsername, getAuthentication().getName(), Set.of()));
 	}
 
 	public boolean isNice() {
