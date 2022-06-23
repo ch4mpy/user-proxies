@@ -3,10 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "postinstall": "npm run user-proxies-api:install",
+    "postinstall": "npm run user-proxies-api:build",
     "user-proxies-api:generate": "npx openapi-generator-cli generate -i ../user-proxies-api.openapi.json -g typescript-angular --type-mappings AnyType=any --additional-properties=serviceSuffix=Api,npmName=@c4-soft/user-proxies-api,npmVersion=0.0.1,enumPropertyNaming=camelCase,supportsES6=true,withInterfaces=true --remove-operation-id-prefix -o projects/c4-soft/user-proxies-api",
     "user-proxies-api:build": "npm run user-proxies-api:generate && npm run ng -- build @c4-soft/user-proxies-api --configuration production",
-    "user-proxies-api:install": "cd projects/c4-soft/user-proxies-api && npm i && cd ../../.. && npm run user-proxies-api:build",
     "user-proxies:serve": "cd projects/user-proxies && npm run serve",
     "user-proxies:android": "cd projects/user-proxies && npm run android",
     "user-proxies:build": "cd projects/user-proxies && npm run build",

@@ -10,4 +10,5 @@ model/proxyDto.ts
 model/proxyEditDto.ts
 model/userCreateDto.ts
 model/userDto.ts
+package.json
 variables.ts
