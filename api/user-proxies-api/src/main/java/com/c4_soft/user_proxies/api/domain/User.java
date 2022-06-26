@@ -10,6 +10,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.Email;
 
 import lombok.AllArgsConstructor;
@@ -17,7 +18,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = { @UniqueConstraint(name = "UK_USER_SUBJECT", columnNames = "subject"),
+		@UniqueConstraint(name = "UK_USER_EMAIL", columnNames = "email"),
+		@UniqueConstraint(name = "UK_USER_USERNAME", columnNames = "username") })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,14 +29,14 @@ public class User {
 	@GeneratedValue
 	private Long id;
 
-	@Column(nullable = false, unique = true)
+	@Column(nullable = false)
 	private String subject;
 
-	@Column(nullable = false, unique = true)
+	@Column(nullable = false)
 	@Email
 	private String email;
 
-	@Column(nullable = false, unique = true)
+	@Column(name = "username", nullable = false)
 	private String preferredUsername;
 
 	@OneToMany(mappedBy = "grantedUser", cascade = CascadeType.ALL, orphanRemoval = false)

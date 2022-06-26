@@ -6,8 +6,10 @@ import {
   OnInit,
 } from '@angular/core';
 import { Deeplinks } from '@awesome-cordova-plugins/deeplinks/ngx';
+import { UsersApi } from '@c4-soft/user-proxies-api';
 import { MenuController, NavController, Platform } from '@ionic/angular';
 import { Subscription } from 'rxjs/internal/Subscription';
+import { environment } from '../environments/environment';
 import { UserService } from './user.service';
 
 @Component({
@@ -71,7 +73,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private platform: Platform,
     private deeplinks: Deeplinks,
     private navController: NavController,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private usersApi: UsersApi,
   ) {}
 
   ngOnInit(): void {
@@ -79,6 +82,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.platform.is('capacitor')) {
       this.setupDeeplinks();
     }
+    this.usersApi.configuration.basePath = environment.basePath
   }
 
   public openMenu() {

@@ -67,6 +67,20 @@
               "sourceMap": true,
               "namedChunks": true
             },
+            "localhost": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true,
+              "fileReplacements": [
+                {
+                  "replace": "projects/user-proxies/src/environments/environment.ts",
+                  "with": "projects/user-proxies/src/environments/environment.localhost.ts"
+                }
+              ]
+            },
             "bravo-ch4mp": {
               "buildOptimizer": false,
               "optimization": false,
@@ -92,6 +106,13 @@
             },
             "development": {
               "browserTarget": "user-proxies:build:development"
+            },
+            "localhost": {
+              "browserTarget": "user-proxies:build:localhost",
+              "host": "localhost",
+              "ssl": true,
+              "sslCert": "/Users/ch4mp/.ssh/localhost_self_signed.crt",
+              "sslKey": "/Users/ch4mp/.ssh/localhost_req_key.pem"
             },
             "bravo-ch4mp": {
               "browserTarget": "user-proxies:build:bravo-ch4mp",

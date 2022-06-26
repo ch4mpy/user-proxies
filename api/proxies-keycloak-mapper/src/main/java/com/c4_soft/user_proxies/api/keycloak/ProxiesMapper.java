@@ -16,9 +16,6 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.IDToken;
 
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		implements OIDCAccessTokenMapper, OIDCIDTokenMapper, UserInfoTokenMapper {
 	private static final String AUTHORIZATION_URI = "proxies-service.authorization-uri";
@@ -116,9 +113,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 				.userProxiesBaseUri(mappingModel.getConfig().get(PROXIES_SERVICE_BASE_URI)).build();
 		final var who = Optional.ofNullable(userSession.getUser().getUsername()).orElse("");
 		if (who == null || who.length() == 0) {
-			log.warn("Empty username for user subject {}", token.getSubject());
 		} else {
-			log.debug("Call UserProxiesClient for {}", who);
 			final var proxies = UserProxiesClient.getInstance(clientConfig).getPermissionsByProxiedUsernameFor(who);
 			token.getOtherClaims().put("proxies", proxies);
 			setClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);

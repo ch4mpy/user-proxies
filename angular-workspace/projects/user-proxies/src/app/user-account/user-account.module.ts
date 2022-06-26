@@ -5,6 +5,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -17,10 +18,9 @@ import { UserAccountRoutingModule } from './user-account-routing.module';
 import { UserAccountScreen } from './user-account.screen';
 import { ProxyComponent } from './proxy.component';
 import { MatDialogModule } from '@angular/material/dialog';
-import { ProxyEditDialog } from './proxy-edit.dialog';
 
 @NgModule({
-  declarations: [UserAccountScreen, ProxyCreationDialog, ProxyEditDialog, ProxyComponent],
+  declarations: [UserAccountScreen, ProxyCreationDialog, ProxyComponent],
   imports: [
     CommonModule,
     FormsModule,
@@ -30,6 +30,7 @@ import { ProxyEditDialog } from './proxy-edit.dialog';
     MatAutocompleteModule,
     MatButtonModule,
     MatCheckboxModule,
+    MatChipsModule,
     MatDatepickerModule,
     MatDialogModule,
     MatFormFieldModule,

@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "postinstall": "npm run user-proxies-api:build",
+    "postinstall": "npm run user-proxies-api:build && cd projects/user-proxies && npm i && cd ../c4-soft/user-proxies-api && npm i && cd ../..",
     "user-proxies-api:generate": "npx openapi-generator-cli generate -i ../user-proxies-api.openapi.json -g typescript-angular --type-mappings AnyType=any --additional-properties=serviceSuffix=Api,npmName=@c4-soft/user-proxies-api,npmVersion=0.0.1,enumPropertyNaming=camelCase,supportsES6=true,withInterfaces=true --remove-operation-id-prefix -o projects/c4-soft/user-proxies-api",
     "user-proxies-api:build": "npm run user-proxies-api:generate && npm run ng -- build @c4-soft/user-proxies-api --configuration production",
-    "user-proxies:serve": "cd projects/user-proxies && npm run serve",
+    "user-proxies:pc": "cd projects/user-proxies && npm run serve:pc",
+    "user-proxies:localhost": "cd projects/user-proxies && npm run serve:localhost",
     "user-proxies:android": "cd projects/user-proxies && npm run android",
     "user-proxies:build": "cd projects/user-proxies && npm run build",
     "user-proxies:test": "cd projects/user-proxies && npm run test"
@@ -33,9 +34,10 @@
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^14.0.1",
-    "@angular/cli": "~14.0.1",
+    "@angular/cli": "^14.0.3",
     "@angular/compiler-cli": "^14.0.0",
     "@ionic/angular-toolkit": "^6.1.0",
+    "@ionic/cli": "^6.20.1",
     "@openapitools/openapi-generator-cli": "^2.5.1",
     "@types/jasmine": "~4.0.0",
     "jasmine-core": "~4.1.0",

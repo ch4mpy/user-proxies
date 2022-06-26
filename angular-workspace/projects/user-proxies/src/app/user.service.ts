@@ -23,7 +23,7 @@ export class User {
     readonly displayName: string,
     readonly email: string,
     readonly roles: Array<string>,
-    readonly proxies: Map<string, Array<string>>
+    readonly proxies: any
   ) {}
 
   get isAuthenticated(): boolean {
@@ -31,7 +31,7 @@ export class User {
   }
 
   getProxy(proxiedUsername: string): Array<string> {
-    return this.proxies.get(proxiedUsername) || [];
+    return this.proxies[proxiedUsername] || [];
   }
 
   static of(userData?: any): User {
@@ -58,7 +58,7 @@ export class User {
             .concat(clientRoles)
             .map((r) => r?.trim()?.toUpperCase())
             .filter((r) => !!r?.length),
-          userData?.proxies || new Map<string, Array<string>>()
+          userData?.proxies || {}
         )
       : User.ANONYMOUS;
   }
@@ -85,15 +85,18 @@ export class UserService {
     this._currentUser$.next(User.of(idClaims));
     lastValueFrom(
       this.usersApi.retrieveByPreferredUsername(idClaims.preferred_username)
-    ).catch(() =>
-      lastValueFrom(
-        this.usersApi.create({
-          email: idClaims.email,
-          preferredUsername: idClaims.preferred_username,
-          subject: idClaims.sub,
-        })
-      )
-    );
+    ).catch((e) => {
+      console.log(e);
+      if (e?.status === 404) {
+        lastValueFrom(
+          this.usersApi.create({
+            email: idClaims.email,
+            preferredUsername: idClaims.preferred_username,
+            subject: idClaims.sub,
+          })
+        );
+      }
+    });
   }
 
   ngOnDestroy() {}

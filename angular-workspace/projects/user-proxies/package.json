@@ -6,7 +6,8 @@
   "scripts": {
     "test": "ionic test",
     "build": "ionic build",
-    "serve": "ionic serve --ssl --external --public-host=bravo-ch4mp -c=bravo-ch4mp",
+    "serve:localhost": "ionic serve --ssl --external --public-host=localhost -c=localhost",
+    "serve:pc": "ionic serve --ssl --external --public-host=bravo-ch4mp -c=bravo-ch4mp",
     "android": "ionic capacitor run android -l --ssl --external --public-host=bravo-ch4mp -c=bravo-ch4mp"
   },
   "keywords": [],

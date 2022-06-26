@@ -62,7 +62,7 @@ public class UserProxiesClient {
 		final var now = new Date().getTime();
 		if (expiresAt < now) {
 			try {
-				log.debug("Get client access token with {}", config.getUsername());
+				log.info("Get client access token with {}", config.getUsername());
 				token = Optional.ofNullable(tokenWebClient.post().headers(headers -> {
 					headers.setBasicAuth(config.getUsername(), config.getPassword());
 					headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -74,6 +74,7 @@ public class UserProxiesClient {
 				return Optional.empty();
 			}
 		}
+		log.debug("Access token: {}", token.orElse(null));
 		return token.map(TokenResponseDto::getAccessToken);
 	}
 

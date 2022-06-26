@@ -6,7 +6,7 @@
         "capacitor": {}
       },
       "type": "angular",
-      "root": "projects\\user-proxies"
+      "root": "projects/user-proxies"
     }
   },
   "defaultProject": "user-proxies"
