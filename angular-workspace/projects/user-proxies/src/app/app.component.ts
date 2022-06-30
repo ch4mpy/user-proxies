@@ -6,6 +6,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { Deeplinks } from '@awesome-cordova-plugins/deeplinks/ngx';
+import { GreetApi } from '@c4-soft/greet-api';
 import { UsersApi } from '@c4-soft/user-proxies-api';
 import { MenuController, NavController, Platform } from '@ionic/angular';
 import { Subscription } from 'rxjs/internal/Subscription';
@@ -54,6 +55,15 @@ import { UserService } from './user.service';
                   <ion-icon slot="start" name="home"></ion-icon>
                   <ion-label>Home</ion-label>
                 </ion-item>
+                <ion-item
+                  lines="none"
+                  detail="false"
+                  *ngIf="user.current.isAuthenticated"
+                  (click)="user.logout()"
+                >
+                  <ion-icon slot="start" name="person-circle"></ion-icon>
+                  <ion-label>Logout</ion-label>
+                </ion-item>
               </ion-list>
             </ion-menu-toggle>
           </ion-content>
@@ -75,6 +85,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private navController: NavController,
     private cdr: ChangeDetectorRef,
     private usersApi: UsersApi,
+    private greetApi: GreetApi,
   ) {}
 
   ngOnInit(): void {
@@ -82,7 +93,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.platform.is('capacitor')) {
       this.setupDeeplinks();
     }
-    this.usersApi.configuration.basePath = environment.basePath
+    this.usersApi.configuration.basePath = environment.usersBasePath
+    this.greetApi.configuration.basePath = environment.greetBasePath
   }
 
   public openMenu() {

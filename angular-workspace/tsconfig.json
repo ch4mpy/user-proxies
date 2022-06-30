@@ -3,6 +3,9 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
+      "@c4-soft/greet-api": [
+        "dist/c4-soft/greet-api"
+      ],
       "@c4-soft/user-proxies-api": [
         "dist/c4-soft/user-proxies-api"
       ]

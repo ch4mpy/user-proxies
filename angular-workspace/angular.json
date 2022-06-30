@@ -182,6 +182,37 @@
           }
         }
       }
+    },
+    "@c4-soft/greet-api": {
+      "projectType": "library",
+      "root": "projects/c4-soft/greet-api",
+      "sourceRoot": "projects/c4-soft/greet-api/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "options": {
+            "project": "projects/c4-soft/greet-api/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/c4-soft/greet-api/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/c4-soft/greet-api/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/c4-soft/greet-api/src/test.ts",
+            "tsConfig": "projects/c4-soft/greet-api/tsconfig.spec.json",
+            "karmaConfig": "projects/c4-soft/greet-api/karma.conf.js"
+          }
+        }
+      }
     }
   },
   "cli": {

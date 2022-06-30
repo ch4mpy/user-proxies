@@ -18,6 +18,7 @@ import { UserAccountRoutingModule } from './user-account-routing.module';
 import { UserAccountScreen } from './user-account.screen';
 import { ProxyComponent } from './proxy.component';
 import { MatDialogModule } from '@angular/material/dialog';
+import { SharedModule } from '../shared/shared.module';
 
 @NgModule({
   declarations: [UserAccountScreen, ProxyCreationDialog, ProxyComponent],
@@ -39,6 +40,7 @@ import { MatDialogModule } from '@angular/material/dialog';
     MatProgressBarModule,
     MatSelectModule,
     UserAccountRoutingModule,
+    SharedModule,
   ],
   providers: [],
 })

@@ -1,10 +1,11 @@
 import { LogLevel, PassedInitialConfig } from 'angular-auth-oidc-client'
 
-const basePath = 'https://localhost:8443'
+const usersBasePath = 'https://localhost:8443'
+const greetBasePath = 'https://localhost:8444'
 
 const secureRoutes = [
-  `${basePath}/users`,
-  `${basePath}/referential`,
+  `${usersBasePath}/users`,
+  `${greetBasePath}/greet`,
 ]
 
 export const authConfig: PassedInitialConfig = {
@@ -28,5 +29,6 @@ export const environment = {
   production: false,
   authConfig,
   errorHttpInterceptorIgnore: [/^[\w\d\:\/\-]*\/machin(\?.*)?$/],
-  basePath,
+  usersBasePath,
+  greetBasePath,
 }

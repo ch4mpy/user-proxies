@@ -18,22 +18,31 @@ import { HomeScreen } from './home.screen';
 import { NetworkErrorDialog } from './network-error.dialog';
 import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
 import { MatMomentDateModule, MAT_MOMENT_DATE_ADAPTER_OPTIONS, MomentDateAdapter, MomentDateModule } from '@angular/material-moment-adapter';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FlexLayoutModule } from '@angular/flex-layout';
+import { MatInputModule } from '@angular/material/input';
+import { SharedModule } from './shared/shared.module';
 
 @NgModule({
   declarations: [AppComponent, NetworkErrorDialog, HomeScreen],
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
+    FormsModule,
+    ReactiveFormsModule,
+    FlexLayoutModule,
     MomentDateModule,
     HttpClientModule,
     MatAutocompleteModule,
     MatDialogModule,
+    MatInputModule,
     MatSelectModule,
     IonicModule.forRoot(),
     IonicStorageModule.forRoot(),
     AuthModule.forRoot(environment.authConfig),
     AppRoutingModule,
     BrowserAnimationsModule,
+    SharedModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },

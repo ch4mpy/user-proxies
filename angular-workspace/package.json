@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "postinstall": "npm run user-proxies-api:build && cd projects/user-proxies && npm i && cd ../c4-soft/user-proxies-api && npm i && cd ../..",
+    "postinstall": "npm run user-proxies-api:build && npm run greet-api:build && cd projects/user-proxies && npm i && cd ../c4-soft/user-proxies-api && npm i && cd ../greet-api && npm i && cd ../..",
+    "greet-api:generate": "npx openapi-generator-cli generate -i ../greet-api.openapi.json -g typescript-angular --type-mappings AnyType=any --additional-properties=serviceSuffix=Api,npmName=@c4-soft/greet-api,npmVersion=0.0.1,enumPropertyNaming=camelCase,supportsES6=true,withInterfaces=true --remove-operation-id-prefix -o projects/c4-soft/greet-api",
+    "greet-api:build": "npm run greet-api:generate && npm run ng -- build @c4-soft/greet-api --configuration production",
     "user-proxies-api:generate": "npx openapi-generator-cli generate -i ../user-proxies-api.openapi.json -g typescript-angular --type-mappings AnyType=any --additional-properties=serviceSuffix=Api,npmName=@c4-soft/user-proxies-api,npmVersion=0.0.1,enumPropertyNaming=camelCase,supportsES6=true,withInterfaces=true --remove-operation-id-prefix -o projects/c4-soft/user-proxies-api",
     "user-proxies-api:build": "npm run user-proxies-api:generate && npm run ng -- build @c4-soft/user-proxies-api --configuration production",
     "user-proxies:pc": "cd projects/user-proxies && npm run serve:pc",
