@@ -1,7 +1,7 @@
 import { LogLevel, PassedInitialConfig } from 'angular-auth-oidc-client'
 
-const usersBasePath = 'https://localhost:9443'
-const greetBasePath = 'https://localhost:9445'
+const usersBasePath = 'https://mc-ch4mp.local:9443'
+const greetBasePath = 'https://mc-ch4mp.local:9445'
 
 const secureRoutes = [
   `${usersBasePath}/users`,
@@ -10,7 +10,7 @@ const secureRoutes = [
 
 export const authConfig: PassedInitialConfig = {
   config: {
-    authority: 'https://localhost:8443/realms/master',
+    authority: 'https://mc-ch4mp.local:8443/auth/realms/master',
     secureRoutes,
     redirectUrl: window.location.origin,
     postLogoutRedirectUri: window.location.origin,

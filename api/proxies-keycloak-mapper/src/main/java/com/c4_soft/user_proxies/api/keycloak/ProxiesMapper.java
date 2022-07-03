@@ -34,7 +34,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		property.setLabel("Proxies service base URI");
 		property.setHelpText("Base URI for REST service to fetch proxies from");
 		property.setType(ProviderConfigProperty.STRING_TYPE);
-		property.setDefaultValue("https://localhost:8443/users");
+		property.setDefaultValue("https://localhost:9443/users");
 		configProperties.add(property);
 
 		property = new ProviderConfigProperty();
@@ -57,7 +57,7 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 		property.setLabel("Authorization endpoint");
 		property.setHelpText("Token end-point for authorizing proxies mapper");
 		property.setType(ProviderConfigProperty.STRING_TYPE);
-		property.setDefaultValue("https://localhost:9443/auth/realms/master/protocol/openid-connect/token");
+		property.setDefaultValue("https://localhost:8443/realms/master/protocol/openid-connect/token");
 		configProperties.add(property);
 	}
 

@@ -176,7 +176,7 @@ public class UserController {
 				String.format("No user with preferredUsername %s", preferredUsername)));
 	}
 
-	private List<Proxy> processOverlaps(Proxy proxy) {
+	List<Proxy> processOverlaps(Proxy proxy) {
 		final var proxiesToCheck = proxyRepo
 				.findAll(ProxyRepository.searchSpec(Optional.of(proxy.getGrantingUser().getPreferredUsername()),
 						Optional.of(proxy.getGrantedUser().getPreferredUsername()), Optional.empty()));

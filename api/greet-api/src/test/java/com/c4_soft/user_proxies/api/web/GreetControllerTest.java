@@ -7,19 +7,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
 
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
-import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
 import com.c4_soft.springaddons.security.oauth2.test.mockmvc.MockMvcSupport;
+import com.c4_soft.user_proxies.api.security.ControllerTest;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
 import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
-import com.c4_soft.user_proxies.api.security.WebSecurityConfig;
 import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @WebMvcTest(GreetController.class)
-@AutoConfigureSecurityAddons
-@Import({ WebSecurityConfig.class })
+@ControllerTest
 class GreetControllerTest {
 
 	@Autowired
@@ -61,5 +58,4 @@ class GreetControllerTest {
 	void testWithoutNiceAuthorityNorProxyNorHimself() throws Exception {
 		mockMvc.get("/greet/ch4mpy").andExpect(status().isForbidden());
 	}
-
 }

@@ -17,19 +17,20 @@ import org.springframework.security.authentication.AuthenticationManagerResolver
 
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 import com.c4_soft.springaddons.security.oauth2.test.mockmvc.MockMvcSupport;
-import com.c4_soft.user_proxies.api.ControllerTest;
+import com.c4_soft.user_proxies.api.EnableSpringDataWebSupportTestConf;
 import com.c4_soft.user_proxies.api.ProxyFixtures;
 import com.c4_soft.user_proxies.api.UserFixtures;
 import com.c4_soft.user_proxies.api.domain.User;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
+import com.c4_soft.user_proxies.api.security.ControllerTest;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
 import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
 import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @WebMvcTest(controllers = { UserController.class })
 @ControllerTest
-@Import({ UserMapperImpl.class, UserProxyMapperImpl.class })
+@Import({ EnableSpringDataWebSupportTestConf.class, UserMapperImpl.class, UserProxyMapperImpl.class })
 class UserControllerTests {
 	@Autowired
 	MockMvcSupport mockMvc;
@@ -150,5 +151,4 @@ class UserControllerTests {
 	void whenNotGrantedWithEditProxiesThenForbiddenToGrantingProxies() throws Exception {
 		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
-
 }

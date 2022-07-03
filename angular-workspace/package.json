@@ -10,7 +10,8 @@
     "user-proxies-api:build": "npm run user-proxies-api:generate && npm run ng -- build @c4-soft/user-proxies-api --configuration production",
     "user-proxies:pc": "cd projects/user-proxies && npm run serve:pc",
     "user-proxies:localhost": "cd projects/user-proxies && npm run serve:localhost",
-    "user-proxies:android": "cd projects/user-proxies && npm run android",
+    "user-proxies:android:mc": "cd projects/user-proxies && npm run android:mc",
+    "user-proxies:android:pc": "cd projects/user-proxies && npm run android:pc",
     "user-proxies:build": "cd projects/user-proxies && npm run build",
     "user-proxies:test": "cd projects/user-proxies && npm run test"
   },

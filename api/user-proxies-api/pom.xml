@@ -124,7 +124,7 @@
 		<profile>
 			<id>openapi</id>
 			<properties>
-				<integration-tests.port>8443</integration-tests.port>
+				<integration-tests.port>9443</integration-tests.port>
 			</properties>
 			<dependencies>
 				<dependency>

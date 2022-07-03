@@ -1,7 +1,7 @@
 import { LogLevel, PassedInitialConfig } from 'angular-auth-oidc-client'
 
-const usersBasePath = 'https://bravo-ch4mp:8443'
-const greetBasePath = 'https://bravo-ch4mp:8444'
+const usersBasePath = 'https://bravo-ch4mp:9443'
+const greetBasePath = 'https://bravo-ch4mp:9445'
 
 const secureRoutes = [
   `${usersBasePath}/users`,
@@ -10,7 +10,7 @@ const secureRoutes = [
 
 export const authConfig: PassedInitialConfig = {
   config: {
-    authority: 'https://bravo-ch4mp:9443/auth/realms/master',
+    authority: 'https://bravo-ch4mp:8443/auth/realms/master',
     secureRoutes,
     redirectUrl: window.location.origin,
     postLogoutRedirectUri: window.location.origin,

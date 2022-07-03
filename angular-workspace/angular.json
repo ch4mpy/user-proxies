@@ -94,6 +94,20 @@
                   "with": "projects/user-proxies/src/environments/environment.bravo-ch4mp.ts"
                 }
               ]
+            },
+            "mc-ch4mp": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true,
+              "fileReplacements": [
+                {
+                  "replace": "projects/user-proxies/src/environments/environment.ts",
+                  "with": "projects/user-proxies/src/environments/environment.mc-ch4mp.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -120,6 +134,13 @@
               "ssl": true,
               "sslCert": "C:/Users/ch4mp/.ssh/bravo-ch4mp_self_signed.crt",
               "sslKey": "C:/Users/ch4mp/.ssh/bravo-ch4mp_req_key.pem"
+            },
+            "mc-ch4mp": {
+              "browserTarget": "user-proxies:build:mc-ch4mp",
+              "host": "mc-ch4mp.local",
+              "ssl": true,
+              "sslCert": "C:/Users/ch4mp/.ssh/mc-ch4mp.local_self_signed.crt",
+              "sslKey": "C:/Users/ch4mp/.ssh/mc-ch4mp.local_req_key.pem"
             }
           },
           "defaultConfiguration": "development"

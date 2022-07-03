@@ -99,7 +99,7 @@
 		<profile>
 			<id>openapi</id>
 			<properties>
-				<integration-tests.port>8444</integration-tests.port>
+				<integration-tests.port>9445</integration-tests.port>
 			</properties>
 			<dependencies>
 				<dependency>

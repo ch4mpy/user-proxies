@@ -14,10 +14,6 @@
 	<name>proxies-keycloak-mapper</name>
 	<description>Keycloak mapper to add "proxies" private claim to tokens</description>
 
-	<properties>
-		<keycloak.version>18.0.0</keycloak.version>
-	</properties>
-
 	<dependencies>
 		<dependency>
             <groupId>com.c4-soft.user-proxies.api</groupId>
