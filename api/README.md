@@ -19,7 +19,7 @@ mvn archetype:generate \
   -DarchetypeCatalog=remote \
   -DarchetypeGroupId=com.c4-soft.springaddons \
   -DarchetypeArtifactId=spring-webmvc-archetype-multimodule \
-  -DarchetypeVersion=4.4.0 \
+  -DarchetypeVersion=4.4.9 \
   -DgroupId=com.c4-soft.user-proxies \
   -DartifactId=api \
   -Dversion=1.0.0-SNAPSHOT \
@@ -28,7 +28,7 @@ mvn archetype:generate \
 ```
 
 ## additional modules
-In parent pom, add `security`, `security-test`, `keycloak-mapper` and `greet-api` modules with dependency management for the first two:
+In parent pom, add `security`, `security-test`, `keycloak-mapper` and `greet-api` modules with dependency management for the first two. Also add keycloak version as property:
 ```xml
 	<modules>
 		<module>dtos</module>
@@ -36,25 +36,29 @@ In parent pom, add `security`, `security-test`, `keycloak-mapper` and `greet-api
 		<module>security</module>
 		<module>security-test</module>
 		<module>user-proxies-api</module>
-		<module>keycloak-mapper</module>
+		<module>proxies-keycloak-mapper</module>
 		<module>greet-api</module>
 	</modules>
-...
+	
+	<properties>
+		<keycloak.version>18.0.2</keycloak.version>
+		...
+	</properties>
+	
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<groupId>com.c4-soft.user-proxies.api</groupId>
 				<artifactId>security</artifactId>
-				<version>1.0.0-SNAPSHOT</version>
+				<version>${project.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>com.c4-soft.user-proxies.api</groupId>
 				<artifactId>security-test</artifactId>
-				<version>1.0.0-SNAPSHOT</version>
+				<version>${project.version}</version>
 			</dependency>
 ...
 ```
-
 Here are the poms for those modules:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -123,89 +127,6 @@ Here are the poms for those modules:
 			<optional>true</optional>
 		</dependency>
 	</dependencies>
-</project>
-```
-```xml
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>com.c4-soft.user-proxies</groupId>
-		<artifactId>api</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
-		<relativePath>..</relativePath>
-	</parent>
-    <groupId>com.c4-soft.user-proxies.api</groupId>
-	<artifactId>proxies-keycloak-mapper</artifactId>
-	<packaging>jar</packaging>
-	<name>proxies-keycloak-mapper</name>
-	<description>Keycloak mapper to add "proxies" private claim to tokens</description>
-
-	<properties>
-		<keycloak.version>18.0.0</keycloak.version>
-	</properties>
-
-	<dependencies>
-		<dependency>
-            <groupId>com.c4-soft.user-proxies.api</groupId>
-            <artifactId>dtos</artifactId>
-		</dependency>
-
-		<!-- provided keycloak dependencies -->
-		<dependency>
-			<groupId>org.keycloak</groupId>
-			<artifactId>keycloak-server-spi</artifactId>
-			<version>${keycloak.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.keycloak</groupId>
-			<artifactId>keycloak-server-spi-private</artifactId>
-			<version>${keycloak.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.keycloak</groupId>
-			<artifactId>keycloak-services</artifactId>
-			<version>${keycloak.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webflux</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>ch.qos.logback</groupId>
-					<artifactId>logback-classic</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-	</dependencies>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<!-- Run shade goal on package phase -->
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>
 ```
 ```xml
@@ -334,23 +255,31 @@ Here are the poms for those modules:
 
 Also, in `user-proxies-api` replace dependencies on `spring-security-oauth2-webmvc-addons` and `spring-security-oauth2-test-webmvc-addons` by dependencies on `security` and `security-test` modules.
 
-## `security` module
-This module will hold shared security configuration
-
-Define what `Permission` and `Proxy` are:
+## Grants
+To avoid circular dependencied for grants enum, we'll add it to DTOs modules (it is not an entity and is used a bit of every where). A cleaner approach would be creating a dedicated module.
 ```java
-package com.c4_soft.user_proxies.api.security;
+package com.c4_soft.user_proxies.api.web.dto;
 
-public enum Permission {
+public enum Grant {
 	GREET, PROFILE_READ, PROXIES_READ, PROXIES_EDIT
 }
 ```
+
+## `security` module
+This module will hold shared security classes and configuration. Spring-addons provides with a lot of auto-configuration, but we need more than standard Role Based Access Control. We'll see how to override some of default conf:
+- specialized `OpenidClaimSet` to access JWT `proxies` private-claim
+- specialized `OAuthentication` which exposes proxies in addition to user name and roles
+- add proxies DSL to security SpEL
+
+Let's first define what `Grant` and `Proxy` are:
 ```java
 package com.c4_soft.user_proxies.api.security;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
+
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 import lombok.Data;
 
@@ -360,20 +289,20 @@ public class Proxy implements Serializable {
 	
 	private final String proxiedUsername;
 	private final String tenantUsername;
-	private final Set<Permission> permissions;
+	private final Set<Grant> permissions;
 
-	public Proxy(String proxiedUsername, String tenantUsername, Set<Permission> permissions) {
+	public Proxy(String proxiedUsername, String tenantUsername, Set<Grant> permissions) {
 		this.proxiedUsername = proxiedUsername;
 		this.tenantUsername = tenantUsername;
 		this.permissions = Collections.unmodifiableSet(permissions);
 	}
 
-	public boolean can(Permission permission) {
+	public boolean can(Grant permission) {
 		return permissions.contains(permission);
 	}
 
 	public boolean can(String permission) {
-		return this.can(Permission.valueOf(permission));
+		return this.can(Grant.valueOf(permission));
 	}
 }
 ```
@@ -388,6 +317,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.c4_soft.springaddons.security.oauth2.OpenidClaimSet;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -410,7 +340,7 @@ public class ProxiesClaimSet extends OpenidClaimSet {
 		if (proxiesClaim == null) {
 			return List.of();
 		}
-		return proxiesClaim.entrySet().stream().map(e -> new Proxy(e.getKey(), claims.getPreferredUsername(), e.getValue().stream().map(Permission::valueOf).collect(Collectors.toSet()))).toList();
+		return proxiesClaim.entrySet().stream().map(e -> new Proxy(e.getKey(), claims.getPreferredUsername(), e.getValue().stream().map(Grant::valueOf).collect(Collectors.toSet()))).toList();
 	}
 
 	public Proxy getProxyFor(String username) {
@@ -460,58 +390,66 @@ public class ProxiesAuthentication extends OAuthentication<ProxiesClaimSet> {
 }
 ```
 
-Update WebSecurityConfig to provide an authentication converter returning ProxiesAuthentication instances instead of default `OAuthentication<OpenidClaimSet>`.
+Update WebSecurityConfig to:
+- provide a `claimsConverter` bean returning `ProxiesClaimSet` instead of `OpenidClaimSet`
+- provide an `authenticationConverter` returning `ProxiesAuthentication` instances instead of default `OAuthentication<OpenidClaimSet>`
+- build a `C4MethodSecurityExpressionHandler` bean with a `ProxiesMethodSecurityExpressionRoot` provider. This specialised `C4MethodSecurityExpressionRoot` should expose:
+  * `boolean is(String preferredUsername)` to check if current user has given username
+  * `Proxy onBehalfOf(String proxiedUsername)` to access the proxy current user has to act on behalf given other user
+  * `boolean isNice()` to check if current user is granted any of a fixed authorities set
 
-Last, define a `MethodSecurityExpressionHandler` bean to add proxies DSL to security SpEL
-
-This gives following security-config:
+Last, define a `ProxiesMethodSecurityExpressionRoot` bean to add proxies DSL to security SpEL:
 ```java
 package com.c4_soft.user_proxies.api.security;
+
+import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 
 import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2AuthenticationConverter;
+import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2ClaimSetConverter;
 import com.c4_soft.springaddons.security.oauth2.config.Jwt2AuthoritiesConverter;
-import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpressionHandler;
+import com.c4_soft.springaddons.security.oauth2.spring.C4MethodSecurityExpressionHandler;
+import com.c4_soft.springaddons.security.oauth2.spring.C4MethodSecurityExpressionRoot;
 
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
 	
 	@Bean
-	public SynchronizedJwt2AuthenticationConverter<ProxiesAuthentication> authenticationConverter(
-			Jwt2AuthoritiesConverter authoritiesConverter) {
-		return jwt -> new ProxiesAuthentication(new ProxiesClaimSet(jwt.getClaims()), authoritiesConverter.convert(jwt), jwt.getTokenValue());
-	}
-	
-	@Bean
-	public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-		return new GenericMethodSecurityExpressionHandler<>(ProxiesMethodSecurityExpressionRoot::new);
-	}
-}
-```
-```java
-package com.c4_soft.user_proxies.api.security;
-
-import com.c4_soft.springaddons.security.oauth2.spring.GenericMethodSecurityExpressionRoot;
-
-final class ProxiesMethodSecurityExpressionRoot extends GenericMethodSecurityExpressionRoot<ProxiesAuthentication> {
-	public ProxiesMethodSecurityExpressionRoot() {
-		super(ProxiesAuthentication.class);
+	SynchronizedJwt2ClaimSetConverter<ProxiesClaimSet> claimsConverter() {
+		return jwt -> new ProxiesClaimSet(jwt.getClaims());
 	}
 
-	public boolean is(String preferredUsername) {
-		return getAuth().hasName(preferredUsername);
-	}
+    @Bean
+    SynchronizedJwt2AuthenticationConverter<ProxiesAuthentication> authenticationConverter(
+    		SynchronizedJwt2ClaimSetConverter<ProxiesClaimSet> claimsConverter,
+            Jwt2AuthoritiesConverter authoritiesConverter) {
+        return jwt -> new ProxiesAuthentication(claimsConverter.convert(jwt), authoritiesConverter.convert(jwt), jwt.getTokenValue());
+    }
 
-	public Proxy onBehalfOf(String proxiedUsername) {
-		return getAuth().getProxyFor(proxiedUsername);
-	}
+    @Bean
+    MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        return new C4MethodSecurityExpressionHandler(ProxiesMethodSecurityExpressionRoot::new);
+    }
+    
+    static final class ProxiesMethodSecurityExpressionRoot extends C4MethodSecurityExpressionRoot {
 
-	public boolean isNice() {
-		return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
-	}
+    	public boolean is(String preferredUsername) {
+    		return Objects.equals(getAuthentication().getName(), preferredUsername);
+    	}
+
+    	public Proxy onBehalfOf(String proxiedUsername) {
+    		return get(ProxiesAuthentication.class).map(a -> a.getProxyFor(proxiedUsername))
+    				.orElse(new Proxy(proxiedUsername, getAuthentication().getName(), Set.of()));
+    	}
+
+    	public boolean isNice() {
+    		return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
+    	}
+    }
 }
 ```
 
@@ -539,6 +477,7 @@ import org.springframework.security.test.context.support.WithSecurityContext;
 
 import com.c4_soft.springaddons.security.oauth2.test.annotations.AbstractAnnotatedAuthenticationBuilder;
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @Target({ ElementType.METHOD, ElementType.TYPE })
 @Retention(RetentionPolicy.RUNTIME)
@@ -557,18 +496,18 @@ public @interface ProxiesId {
 
 	String bearerString() default "machin.truc.chose";
 
-	Grant[] grants() default {};
+	Proxy[] proxies() default {};
 
 	@AliasFor(annotation = WithSecurityContext.class)
 	TestExecutionEvent setupBefore() default TestExecutionEvent.TEST_METHOD;
 
 	@Target({ ElementType.METHOD, ElementType.TYPE })
 	@Retention(RetentionPolicy.RUNTIME)
-	public static @interface Grant {
+	public static @interface Proxy {
 
 		String onBehalfOf();
 
-		Permission[] can() default { Permission.PROFILE_READ };
+		Grant[] can() default { Grant.PROFILE_READ };
 	}
 
 	public static final class AuthenticationFactory
@@ -579,8 +518,8 @@ public @interface ProxiesId {
 			@SuppressWarnings("unchecked")
 			final var proxiesclaim = Optional.ofNullable((Map<String, List<String>>) claims.get("proxies"))
 					.orElse(new HashMap<>());
-			for (final var p : annotation.grants()) {
-				proxiesclaim.put(p.onBehalfOf(), Stream.of(p.can()).map(Permission::toString).toList());
+			for (final var p : annotation.proxies()) {
+				proxiesclaim.put(p.onBehalfOf(), Stream.of(p.can()).map(Grant::toString).toList());
 			}
 			claims.put("proxies", proxiesclaim);
 
@@ -589,11 +528,31 @@ public @interface ProxiesId {
 	}
 }
 ```
+We'll also define a meta annotation to import spring-addons auto-configuration plus our custom WebSecurityConfig:
+```java
+package com.c4_soft.user_proxies.api.security;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+import org.springframework.context.annotation.Import;
+
+import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@AutoConfigureSecurityAddons
+@Import(WebSecurityConfig.class)
+public @interface ControllerTest {
+}
+```
 
 ## DTOs module
 Delete `SampleResponseDto` and `SampleResponseDto`. 
 
-Only `ProxyDto` is needed in this lib (others are not shared between modules and will be defined in each micro-service)
+Only Grant enum and `ProxyDto` are needed in this lib (others are not shared between modules and will be defined in each micro-service)
 ```java
 package com.c4_soft.user_proxies.api.web.dto;
 
@@ -627,7 +586,7 @@ public class ProxyDto implements Serializable {
 	private String grantedUsername;
 
 	@NotNull
-	private List<String> grants;
+	private List<Grant> grants;
 
 	@NotNull
 	private Long start;
@@ -665,7 +624,7 @@ Lets adapt it by steps.
 
 First 
 - rename spring-boot app main class from `SampleApi` to `UserProxiesApi`
-- remove `WebSecurityConfig` from `UserProxiesApi`
+- remove `WebSecurityConfig` from `UserProxiesApi` (it is now defined in `security` module)
 
 ### domain entities
 - rename `SampleEntity` to `User`
@@ -684,6 +643,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.Email;
 
 import lombok.AllArgsConstructor;
@@ -691,7 +651,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = { @UniqueConstraint(name = "UK_USER_SUBJECT", columnNames = "subject"),
+		@UniqueConstraint(name = "UK_USER_EMAIL", columnNames = "email"),
+		@UniqueConstraint(name = "UK_USER_USERNAME", columnNames = "username") })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -700,14 +662,14 @@ public class User {
 	@GeneratedValue
 	private Long id;
 
-	@Column(nullable = false, unique = true)
+	@Column(nullable = false)
 	private String subject;
 
-	@Column(nullable = false, unique = true)
+	@Column(nullable = false)
 	@Email
 	private String email;
 
-	@Column(nullable = false, unique = true)
+	@Column(name = "username", nullable = false)
 	private String preferredUsername;
 
 	@OneToMany(mappedBy = "grantedUser", cascade = CascadeType.ALL, orphanRemoval = false)
@@ -730,7 +692,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
@@ -740,10 +701,9 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 
-import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -752,9 +712,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "user_proxies", uniqueConstraints = {
-		@UniqueConstraint(name = "UniqueProxiedAndGrantedUsers", columnNames = { "granting_user_id",
-				"granted_user_id" }) })
+@Table(name = "user_proxies")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -765,19 +723,19 @@ public class Proxy {
 	private Long id;
 
 	@NotNull
-	@ManyToOne(optional = false, cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+	@ManyToOne(optional = false, fetch = FetchType.EAGER)
 	@JoinColumn(name = "granting_user_id", updatable = false, nullable = false)
 	private User grantingUser;
 
 	@NotNull
-	@ManyToOne(optional = false, cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+	@ManyToOne(optional = false, fetch = FetchType.EAGER)
 	@JoinColumn(name = "granted_user_id", updatable = false, nullable = false)
 	private User grantedUser;
 
 	@NotNull
 	@ElementCollection(fetch = FetchType.EAGER)
 	@Default
-	private List<Permission> grants = new ArrayList<>();
+	private List<Grant> grants = new ArrayList<>();
 
 	@NotNull
 	@Column(name = "start_date", nullable = false, updatable = true)
@@ -786,13 +744,13 @@ public class Proxy {
 	@Column(name = "end_date", nullable = true, updatable = true)
 	private Date end;
 
-	public void allow(Permission grant) {
+	public void allow(Grant grant) {
 		if (!grants.contains(grant)) {
 			grants.add(grant);
 		}
 	}
 
-	public void deny(Permission grant) {
+	public void deny(Grant grant) {
 		grants.remove(grant);
 	}
 	
@@ -802,7 +760,7 @@ public class Proxy {
 	}
 }
 ```
-So, yes, I just promoted low coupling from domain classes to JPA annotations (and I'm fine with that).
+So, yes, I just promoted low coupling from domain classes to JPA entities (and I'm fine with that).
 
 ### JPA persistence layer
 - rename `SampleEntityRepository` to `UserRepository`
@@ -904,8 +862,6 @@ import java.util.List;
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.c4_soft.user_proxies.api.security.Permission;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -918,7 +874,7 @@ public class ProxyEditDto implements Serializable {
 	private static final long serialVersionUID = 7381717131881105091L;
 
 	@NotNull
-	private List<Permission> grants;
+	private List<Grant> grants;
 
 	@NotNull
 	private Long start;
@@ -1076,9 +1032,11 @@ import java.util.Optional;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 
+import org.hibernate.validator.constraints.Length;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -1095,7 +1053,7 @@ import com.c4_soft.user_proxies.api.exceptions.ProxyUsersUnmodifiableException;
 import com.c4_soft.user_proxies.api.exceptions.ResourceNotFoundException;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 import com.c4_soft.user_proxies.api.web.dto.ProxyDto;
 import com.c4_soft.user_proxies.api.web.dto.ProxyEditDto;
 import com.c4_soft.user_proxies.api.web.dto.UserCreateDto;
@@ -1106,6 +1064,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
+@Validated
 @RestController
 @RequestMapping(path = "/users", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
 @RequiredArgsConstructor
@@ -1122,6 +1081,15 @@ public class UserController {
 	public List<UserDto> retrieveByEmailOrPreferredUsernamePart(
 			@RequestParam(name = "emailOrPreferredUsernamePart") @Parameter(description = "Mandatory. Case insensitive part of user e-mail or preferredUserName.") @NotEmpty String emailOrPreferredUsernamePart) {
 		return userRepo.findAll(UserRepository.searchSpec(emailOrPreferredUsernamePart)).stream().map(userMapper::toDto)
+				.toList();
+	}
+
+	@GetMapping("/usernames")
+	@Operation(description = "Retrieve usernames like")
+	@PreAuthorize("isAuthenticated()")
+	public List<String> retrieveUsernamesLike(
+			@RequestParam(name = "preferredUsernamePart") @Parameter(description = "Mandatory. Case insensitive part of preferredUserName.") @Length(min = 3) String preferredUsernamePart) {
+		return userRepo.findAll(UserRepository.searchSpec(preferredUsernamePart)).stream().map(User::getPreferredUsername)
 				.toList();
 	}
 
@@ -1172,16 +1140,17 @@ public class UserController {
 		final var proxy = Proxy.builder().grantingUser(getUser(grantingUsername)).grantedUser(getUser(grantedUsername))
 				.build();
 		proxyMapper.update(proxy, dto);
-		
-		// add required READ_PROFILE grant if missing (granted user should always be able to retrieve granting user profile basic data) 
-		proxy.allow(Permission.PROFILE_READ);
-		
+
+		// add required READ_PROFILE grant if missing (granted user should always be
+		// able to retrieve granting user profile basic data)
+		proxy.allow(Grant.PROFILE_READ);
+
 		// persist new proxy (and get a DB ID)
 		final var created = proxyRepo.save(proxy);
-		
+
 		// process and save proxies overlaps
 		proxyRepo.saveAll(processOverlaps(proxy));
-		
+
 		return ResponseEntity.created(URI.create(created.getId().toString())).build();
 	}
 
@@ -1195,6 +1164,7 @@ public class UserController {
 			@Valid @RequestBody ProxyEditDto dto) {
 		final var proxy = getProxy(id, grantingUsername, grantedUsername);
 		proxyMapper.update(proxy, dto);
+		proxy.allow(Grant.PROFILE_READ);
 		proxyRepo.saveAll(processOverlaps(proxy));
 		return ResponseEntity.accepted().build();
 	}
@@ -1228,7 +1198,7 @@ public class UserController {
 				String.format("No user with preferredUsername %s", preferredUsername)));
 	}
 
-	private List<Proxy> processOverlaps(Proxy proxy) {
+	List<Proxy> processOverlaps(Proxy proxy) {
 		final var proxiesToCheck = proxyRepo
 				.findAll(ProxyRepository.searchSpec(Optional.of(proxy.getGrantingUser().getPreferredUsername()),
 						Optional.of(proxy.getGrantedUser().getPreferredUsername()), Optional.empty()));
@@ -1265,7 +1235,7 @@ public class UserController {
 
 ### application.properties
 ```
-server.port=8443
+server.port=9443
 server.shutdown=graceful
 
 spring.datasource.url=jdbc:h2:mem:sample;DB_CLOSE_DELAY=-1
@@ -1275,10 +1245,12 @@ spring.datasource.password=password
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.properties.hibernate.hbm2ddl.charset_name=UTF-8
 
-com.c4-soft.springaddons.security.token-issuers[0].location=https://localhost:9443/auth/realms/master
+com.c4-soft.springaddons.security.token-issuers[0].location=https://localhost:8443/realms/master
 com.c4-soft.springaddons.security.token-issuers[0].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
-com.c4-soft.springaddons.security.token-issuers[0].authorities.prefix=
-com.c4-soft.springaddons.security.token-issuers[0].authorities.caze=
+com.c4-soft.springaddons.security.token-issuers[1].location=https://mc-ch4mp.local:8443/realms/master
+com.c4-soft.springaddons.security.token-issuers[1].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.token-issuers[2].location=https://bravo-ch4mp:8443/realms/master
+com.c4-soft.springaddons.security.token-issuers[2].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
 com.c4-soft.springaddons.security.cors[0].path=/users/**
 com.c4-soft.springaddons.security.permit-all=/actuator/health/readiness,/actuator/health/liveness,/v3/api-docs/**
 
@@ -1347,6 +1319,68 @@ We'll also need a few User and Proxy fixtures:
 ```java
 package com.c4_soft.user_proxies.api;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import com.c4_soft.user_proxies.api.domain.Proxy;
+import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
+
+public class ProxyFixtures {
+
+	private static Proxy userAToUserB() {
+		return new Proxy(
+				2L,
+				UserFixtures.userA(),
+				UserFixtures.userB(),
+				List.of(Grant.values()),
+				Date.from(Instant.now().minus(1, ChronoUnit.DAYS)),
+				Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
+	}
+
+	private static Proxy userBToUserA() {
+		return new Proxy(2L, UserFixtures.userB(), UserFixtures.userA(), List.of(Grant.PROFILE_READ), Date.from(Instant.now().minus(1, ChronoUnit.DAYS)), null);
+	}
+
+	public static Map<String, List<Proxy>> all() {
+		final var proxiesByGrantingUser = Stream.of(userAToUserB(), userBToUserA()).collect(Collectors.groupingBy(p -> p.getGrantingUser().getPreferredUsername()));
+		for (final var proxiesUserProxies : proxiesByGrantingUser.entrySet()) {
+			for (final var proxy : proxiesUserProxies.getValue()) {
+				proxy.getGrantedUser().getGrantedProxies().add(proxy);
+				proxy.getGrantingUser().getGrantingProxies().add(proxy);
+			}
+		}
+		return proxiesByGrantingUser;
+	}
+
+	public static Map<String, List<Proxy>> setUp(ProxyRepository proxyRepository) {
+		final var proxies = all();
+		when(proxyRepository.findById(anyLong()))
+				.thenAnswer(
+						invocation -> proxies
+								.entrySet()
+								.stream()
+								.map(Entry::getValue)
+								.map(List::stream)
+								.flatMap(p -> p)
+								.filter(p -> p.getId().equals(invocation.getArgument(0)))
+								.findAny());
+		return proxies;
+	}
+}
+```
+```java
+package com.c4_soft.user_proxies.api;
+
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -1383,68 +1417,6 @@ public class UserFixtures {
 	}
 }
 ```
-```java
-package com.c4_soft.user_proxies.api;
-
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.when;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import com.c4_soft.user_proxies.api.domain.Proxy;
-import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
-import com.c4_soft.user_proxies.api.security.Permission;
-
-public class ProxyFixtures {
-
-	private static Proxy userAToUserB() {
-		return new Proxy(
-				2L,
-				UserFixtures.userA(),
-				UserFixtures.userB(),
-				List.of(Permission.values()),
-				Date.from(Instant.now().minus(1, ChronoUnit.DAYS)),
-				Date.from(Instant.now().plus(1, ChronoUnit.DAYS)));
-	}
-
-	private static Proxy userBToUserA() {
-		return new Proxy(2L, UserFixtures.userB(), UserFixtures.userA(), List.of(Permission.PROFILE_READ), Date.from(Instant.now().minus(1, ChronoUnit.DAYS)), null);
-	}
-
-	public static Map<String, List<Proxy>> all() {
-		final var proxiesByGrantingUser = Stream.of(userAToUserB(), userBToUserA()).collect(Collectors.groupingBy(p -> p.getGrantingUser().getPreferredUsername()));
-		for (final var proxiesUserProxies : proxiesByGrantingUser.entrySet()) {
-			for (final var proxy : proxiesUserProxies.getValue()) {
-				proxy.getGrantedUser().getGrantedProxies().add(proxy);
-				proxy.getGrantingUser().getGrantingProxies().add(proxy);
-			}
-		}
-		return proxiesByGrantingUser;
-	}
-
-	public static Map<String, List<Proxy>> setUp(ProxyRepository proxyRepository) {
-		final var proxies = all();
-		when(proxyRepository.findById(anyLong()))
-				.thenAnswer(
-						invocation -> proxies
-								.entrySet()
-								.stream()
-								.map(Entry::getValue)
-								.map(List::stream)
-								.flatMap(p -> p)
-								.filter(p -> p.getId().equals(invocation.getArgument(0)))
-								.findAny());
-		return proxies;
-	}
-}
-```
 
 And now, actual controller test:
 ```java
@@ -1467,20 +1439,20 @@ import org.springframework.security.authentication.AuthenticationManagerResolver
 
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 import com.c4_soft.springaddons.security.oauth2.test.mockmvc.MockMvcSupport;
-import com.c4_soft.user_proxies.api.ControllerTest;
+import com.c4_soft.user_proxies.api.EnableSpringDataWebSupportTestConf;
 import com.c4_soft.user_proxies.api.ProxyFixtures;
 import com.c4_soft.user_proxies.api.UserFixtures;
-import com.c4_soft.user_proxies.api.domain.Proxy;
 import com.c4_soft.user_proxies.api.domain.User;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.user_proxies.api.security.ControllerTest;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
-import com.c4_soft.user_proxies.api.security.ProxiesId.Grant;
+import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @WebMvcTest(controllers = { UserController.class })
 @ControllerTest
-@Import({ UserMapperImpl.class, UserProxyMapperImpl.class })
+@Import({ EnableSpringDataWebSupportTestConf.class, UserMapperImpl.class, UserProxyMapperImpl.class })
 class UserControllerTests {
 	@Autowired
 	MockMvcSupport mockMvc;
@@ -1493,13 +1465,12 @@ class UserControllerTests {
 
 	@MockBean
 	ProxyRepository proxyRepository;
-
 	@Autowired
 	UserProxyMapper userProxyMapper;
 
 	Map<String, User> users;
 
-	Map<String, List<Proxy>> proxies;
+	Map<String, List<com.c4_soft.user_proxies.api.domain.Proxy>> proxies;
 
 	@BeforeEach
 	public void setUp() {
@@ -1541,16 +1512,16 @@ class UserControllerTests {
 	}
 
 	@Test
-	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { Permission.PROXIES_READ }) })
+	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), proxies = {
+			@Proxy(onBehalfOf = "machin", can = { Grant.PROXIES_READ }) })
 	void whenGrantedWithEditProxiesForProxiedUserThenCanGetUserProxies() throws Exception {
 		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }), // right granting user but wrong grant
-			@Grant(onBehalfOf = "bidule", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) }) // right grant but wrong granting user
+	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), proxies = {
+			@Proxy(onBehalfOf = "machin", can = { Grant.PROFILE_READ }), // right granting user but wrong grant
+			@Proxy(onBehalfOf = "bidule", can = { Grant.PROFILE_READ, Grant.PROXIES_READ }) }) // right grant but wrong granting user
 	void whenNotGrantedWithEditProxiesThenForbidden() throws Exception {
 		mockMvc.get("/users/{grantingUsername}/proxies/granted", "machin").andExpect(status().isForbidden());
 	}
@@ -1589,20 +1560,19 @@ class UserControllerTests {
 	}
 
 	@Test
-	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) })
+	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), proxies = {
+			@Proxy(onBehalfOf = "machin", can = { Grant.PROFILE_READ, Grant.PROXIES_READ }) })
 	void whenGrantedWithEditProxiesForProxiedUserThenCanGetUserProxiesToGrantingProxies() throws Exception {
 		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isOk());
 	}
 
 	@Test
-	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), grants = {
-			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }), // right granting user but wrong grant
-			@Grant(onBehalfOf = "bidule", can = { Permission.PROFILE_READ, Permission.PROXIES_READ }) }) // right grant but wrong granting user
+	@ProxiesId(authorities = {}, claims = @OpenIdClaims(preferredUsername = "truc"), proxies = {
+			@Proxy(onBehalfOf = "machin", can = { Grant.PROFILE_READ }), // right granting user but wrong grant
+			@Proxy(onBehalfOf = "bidule", can = { Grant.PROFILE_READ, Grant.PROXIES_READ }) }) // right grant but wrong granting user
 	void whenNotGrantedWithEditProxiesThenForbiddenToGrantingProxies() throws Exception {
 		mockMvc.get("/users/{grantingUsername}/proxies/granting", "machin").andExpect(status().isForbidden());
 	}
-
 }
 ```
 
@@ -1654,10 +1624,6 @@ Here is pom with
 	<packaging>jar</packaging>
 	<name>proxies-keycloak-mapper</name>
 	<description>Keycloak mapper to add "proxies" private claim to tokens</description>
-
-	<properties>
-		<keycloak.version>18.0.0</keycloak.version>
-	</properties>
 
 	<dependencies>
 		<dependency>
@@ -2009,18 +1975,37 @@ public class ProxiesMapper extends AbstractOIDCProtocolMapper
 
 Now, you can 
 - `mvn package` 
-- copy shaded jar to your keycloak `standalone/deployments/` folder
-- open `Clients` > `user-proxies-client` > `Mappers` > `Create` in Keycloak admin console to configure our `User proxies mapper`
+- copy shaded jar to following keycloak folder, depending on Keycloak version:
+  * < 18:  `standalone/deployments/` (should auto deploy, even if Keycloak already started)
+  * >= 18: `providers/` (needs a restart)
+- open `Clients` > `user-proxies-client` > `Mappers` > `Create` in Keycloak admin console to configure the now available `User proxies mapper`. Required secret is available from `Clients` > `user-proxies-mapper` > `Credentials`
 
 ## Other resource-server sample
 To demo that proxies security SpEL can be used also in modules that do not have access to User and proxy entities (sololy the JWT claims are used), we'll create a new `greet` module:
 
 ### Controller
+```java
+package com.c4_soft.user_proxies.api.web;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class GreetDto {
+
+	private String message;
+	
+}
+```
 ``` java
 package com.c4_soft.user_proxies.api.web;
 
 import java.util.stream.Collectors;
 
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -2030,26 +2015,27 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.c4_soft.user_proxies.api.security.ProxiesAuthentication;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
-@RequestMapping("/greet")
-@PreAuthorize("isAuthenticated()")
+@RequestMapping(path = "/greet", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
+@Tag(name = "Greet")
 public class GreetController {
 
 	@GetMapping()
 	@PreAuthorize("hasAuthority('NICE_GUY')")
-	public String getGreeting(ProxiesAuthentication auth) {
-		return String
-				.format(
-						"Hi %s! You are granted with: %s and can proxy: %s.",
+	public GreetDto getGreeting(ProxiesAuthentication auth) {
+		return new GreetDto(
+						"Hi %s! You are granted with: %s and can proxy: %s.".formatted(
 						auth.getClaims().getPreferredUsername(),
 						auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.joining(", ", "[", "]")),
-						auth.getClaims().getProxies().keySet().stream().collect(Collectors.joining(", ", "[", "]")));
+						auth.getClaims().getProxies().keySet().stream().collect(Collectors.joining(", ", "[", "]"))));
 	}
 
 	@GetMapping("/{username}")
 	@PreAuthorize("is(#username) or isNice() or onBehalfOf(#username).can('GREET')")
-	public String getGreetingOnBehalfOf(@PathVariable("username") String username, ProxiesAuthentication auth) {
-		return String.format("Hi %s!", username);
+	public GreetDto getGreetingOnBehalfOf(@PathVariable("username") String username) {
+		return new GreetDto("Hi %s!".formatted(username));
 	}
 }
 ```
@@ -2070,14 +2056,19 @@ public class GreetApiApplication {
 
 }
 ```
+As security config is defined in a sub-package of main class, it will be auto-scanned.
 
 ### application.properties
 ```
-server.port=8444
+server.port=9445
 server.shutdown=graceful
 
-com.c4-soft.springaddons.security.authorities[0].authorization-server-location=http://localhost:9443/auth/realms/master
-com.c4-soft.springaddons.security.authorities[0].claims=realm_access.roles,resource_access.user-proxies-client.roles
+com.c4-soft.springaddons.security.token-issuers[0].location=https://localhost:8443/realms/master
+com.c4-soft.springaddons.security.token-issuers[0].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.token-issuers[1].location=https://mc-ch4mp.local:8443/realms/master
+com.c4-soft.springaddons.security.token-issuers[1].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.token-issuers[2].location=https://bravo-ch4mp:8443/realms/master
+com.c4-soft.springaddons.security.token-issuers[2].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
 com.c4-soft.springaddons.security.cors[0].path=/greet/**
 com.c4-soft.springaddons.security.permit-all=/actuator/health/readiness,/actuator/health/liveness,/v3/api-docs/**
 
@@ -2092,72 +2083,73 @@ spring.lifecycle.timeout-per-shutdown-phase=30s
 ``` java
 package com.c4_soft.user_proxies.api.web;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.hamcrest.CoreMatchers.is;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.web.servlet.MockMvc;
 
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
-import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
-import com.c4_soft.user_proxies.api.security.WebSecurityConfig;
-import com.c4_soft.user_proxies.api.security.Permission;
+import com.c4_soft.springaddons.security.oauth2.test.mockmvc.MockMvcSupport;
+import com.c4_soft.user_proxies.api.security.ControllerTest;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
-import com.c4_soft.user_proxies.api.security.ProxiesId.Grant;
+import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
+import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @WebMvcTest(GreetController.class)
-@AutoConfigureSecurityAddons
-@Import({ WebSecurityConfig.class })
+@ControllerTest
 class GreetControllerTest {
 
 	@Autowired
-	MockMvc mockMvc;
+	MockMvcSupport mockMvc;
 
 	@Test
-	@ProxiesId(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
-			@Grant(onBehalfOf = "machin", can = { Permission.PROFILE_READ }),
-			@Grant(onBehalfOf = "chose") })
+	@ProxiesId(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {
+			@Proxy(onBehalfOf = "machin", can = { Grant.PROFILE_READ }),
+			@Proxy(onBehalfOf = "chose") })
 	void testGreet() throws Exception {
 		mockMvc
-				.perform(get("/greet").secure(true))
+				.get("/greet")
 				.andExpect(status().isOk())
-				.andExpect(content().string("Hi Tonton Pirate! You are granted with: [NICE_GUY, AUTHOR] and can proxy: [chose, machin]."));
+				.andExpect(jsonPath("$.message", is("Hi Tonton Pirate! You are granted with: [NICE_GUY, AUTHOR] and can proxy: [chose, machin].")));
 	}
 
 	@Test
-	@ProxiesId(authorities = { "ROLE_NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {})
+	@ProxiesId(authorities = { "ROLE_NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {})
 	void testWithNiceAuthority() throws Exception {
-		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi ch4mpy!"));
+		mockMvc.get("/greet/ch4mpy").andExpect(status().isOk()).andExpect(jsonPath("$.message", is("Hi ch4mpy!")));
 	}
 
 	@Test
-	@ProxiesId(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
-			@Grant(onBehalfOf = "ch4mpy", can = { Permission.PROFILE_READ, Permission.GREET }) })
+	@ProxiesId(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {
+			@Proxy(onBehalfOf = "ch4mpy", can = { Grant.PROFILE_READ, Grant.GREET }) })
 	void testWithProxy() throws Exception {
-		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi ch4mpy!"));
+		mockMvc.get("/greet/ch4mpy").andExpect(status().isOk()).andExpect(jsonPath("$.message", is("Hi ch4mpy!")));
 	}
 
 	@Test
-	@ProxiesId(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), grants = {
-			@Grant(onBehalfOf = "ch4mpy", can = { Permission.PROFILE_READ, Permission.GREET }) })
+	@ProxiesId(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {
+			@Proxy(onBehalfOf = "ch4mpy", can = { Grant.PROFILE_READ, Grant.GREET }) })
 	void testWithHimself() throws Exception {
-		mockMvc.perform(get("/greet/Tonton Pirate").secure(true)).andExpect(status().isOk()).andExpect(content().string("Hi Tonton Pirate!"));
+		mockMvc.get("/greet/Tonton Pirate").andExpect(status().isOk()).andExpect(jsonPath("$.message", is("Hi Tonton Pirate!")));
 	}
 
 	@Test
 	@ProxiesId(authorities = { "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"))
 	void testWithoutNiceAuthorityNorProxyNorHimself() throws Exception {
-		mockMvc.perform(get("/greet/ch4mpy").secure(true)).andExpect(status().isForbidden());
+		mockMvc.get("/greet/ch4mpy").andExpect(status().isForbidden());
 	}
-
 }
+```
+With same test properties as user-proxies-api:
+```properties
+com.c4-soft.springaddons.test.web.default-media-type=application/json
+com.c4-soft.springaddons.test.web.default-charset=utf-8
 ```
 
 ## Generate OpenAPI spec files
 
-- Edit `user-proxies-api` pom file to update integration-test.port with what is defined in application.properties : `<integration-tests.port>8443</integration-tests.port>`
+- Edit `user-proxies-api` and `greet-api` pom files to update integration-test.port with what is defined in `application.properties` files : respectively `<integration-tests.port>9443</integration-tests.port>` and `<integration-tests.port>9445</integration-tests.port>`
 - run `mvn clean install -Popenapi`
