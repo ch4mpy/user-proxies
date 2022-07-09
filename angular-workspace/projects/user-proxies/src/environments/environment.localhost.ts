@@ -15,12 +15,11 @@ export const authConfig: PassedInitialConfig = {
     redirectUrl: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
     clientId: 'user-proxies-client',
-    scope: 'openid profile offline_access email roles',
+    scope: 'openid profile offline_access email audience',
     responseType: 'code',
     silentRenew: true,
     useRefreshToken: true,
-    logLevel: LogLevel.Debug,
-
+    logLevel: LogLevel.Debug
   }
 }
 

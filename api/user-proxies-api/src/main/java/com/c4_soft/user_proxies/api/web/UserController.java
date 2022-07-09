@@ -1,6 +1,9 @@
 package com.c4_soft.user_proxies.api.web;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -77,7 +80,7 @@ public class UserController {
 	public ResponseEntity<Void> create(@RequestBody @Valid UserCreateDto dto) {
 		final var user = new User();
 		userMapper.update(user, dto);
-		return ResponseEntity.created(URI.create(userRepo.save(user).getPreferredUsername())).build();
+		return ResponseEntity.created(URI.create(URLEncoder.encode(userRepo.save(user).getPreferredUsername(), StandardCharsets.UTF_8))).build();
 	}
 
 	@GetMapping("/{username}")

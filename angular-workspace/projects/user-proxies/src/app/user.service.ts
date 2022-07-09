@@ -82,6 +82,10 @@ export class UserService {
 
   private async refreshUserData(idClaims: any) {
     console.log('refreshUserData: ', idClaims);
+    if(!idClaims) {
+      this._currentUser$.next(User.ANONYMOUS)
+      return
+    }
     this._currentUser$.next(User.of(idClaims));
     lastValueFrom(
       this.usersApi.retrieveByPreferredUsername(idClaims.preferred_username)
