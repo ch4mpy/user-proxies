@@ -1245,12 +1245,12 @@ spring.datasource.password=password
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.properties.hibernate.hbm2ddl.charset_name=UTF-8
 
-com.c4-soft.springaddons.security.jwt-issuers[0].location=https://localhost:8443/realms/master
-com.c4-soft.springaddons.security.jwt-issuers[0].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
-com.c4-soft.springaddons.security.jwt-issuers[1].location=https://mc-ch4mp.local:8443/realms/master
-com.c4-soft.springaddons.security.jwt-issuers[1].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
-com.c4-soft.springaddons.security.jwt-issuers[2].location=https://bravo-ch4mp:8443/realms/master
-com.c4-soft.springaddons.security.jwt-issuers[2].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.issuers[0].location=https://localhost:8443/realms/master
+com.c4-soft.springaddons.security.issuers[0].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.issuers[1].location=https://mc-ch4mp.local:8443/realms/master
+com.c4-soft.springaddons.security.issuers[1].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.issuers[2].location=https://bravo-ch4mp:8443/realms/master
+com.c4-soft.springaddons.security.issuers[2].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
 com.c4-soft.springaddons.security.cors[0].path=/users/**
 com.c4-soft.springaddons.security.permit-all=/actuator/health/readiness,/actuator/health/liveness,/v3/api-docs/**
 
@@ -2063,12 +2063,12 @@ As security config is defined in a sub-package of main class, it will be auto-sc
 server.port=9445
 server.shutdown=graceful
 
-com.c4-soft.springaddons.security.jwt-issuers[0].location=https://localhost:8443/realms/master
-com.c4-soft.springaddons.security.jwt-issuers[0].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
-com.c4-soft.springaddons.security.jwt-issuers[1].location=https://mc-ch4mp.local:8443/realms/master
-com.c4-soft.springaddons.security.jwt-issuers[1].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
-com.c4-soft.springaddons.security.jwt-issuers[2].location=https://bravo-ch4mp:8443/realms/master
-com.c4-soft.springaddons.security.jwt-issuers[2].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.issuers[0].location=https://localhost:8443/realms/master
+com.c4-soft.springaddons.security.issuers[0].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.issuers[1].location=https://mc-ch4mp.local:8443/realms/master
+com.c4-soft.springaddons.security.issuers[1].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
+com.c4-soft.springaddons.security.issuers[2].location=https://bravo-ch4mp:8443/realms/master
+com.c4-soft.springaddons.security.issuers[2].authorities.claims=realm_access.roles,resource_access.user-proxies-client.roles,resource_access.user-proxies-mapper.roles
 com.c4-soft.springaddons.security.cors[0].path=/greet/**
 com.c4-soft.springaddons.security.permit-all=/actuator/health/readiness,/actuator/health/liveness,/v3/api-docs/**
 
