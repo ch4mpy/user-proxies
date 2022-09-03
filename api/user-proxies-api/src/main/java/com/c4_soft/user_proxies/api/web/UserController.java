@@ -2,7 +2,6 @@ package com.c4_soft.user_proxies.api.web;
 
 import java.net.URI;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;

@@ -5,7 +5,7 @@ import java.util.Set;
 
 import com.c4_soft.springaddons.security.oauth2.spring.C4MethodSecurityExpressionRoot;
 
-final class ProxiesMethodSecurityExpressionRoot extends C4MethodSecurityExpressionRoot {
+class ProxiesMethodSecurityExpressionRoot extends C4MethodSecurityExpressionRoot {
 
 	public boolean is(String preferredUsername) {
 		return Objects.equals(getAuthentication().getName(), preferredUsername);

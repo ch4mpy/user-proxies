@@ -10,13 +10,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 
 import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
 import com.c4_soft.springaddons.security.oauth2.test.mockmvc.MockMvcSupport;
-import com.c4_soft.user_proxies.api.security.ControllerTest;
+import com.c4_soft.user_proxies.api.security.WithSecurity;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
 import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
 import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @WebMvcTest(GreetController.class)
-@ControllerTest
+@WithSecurity
 class GreetControllerTest {
 
 	@Autowired

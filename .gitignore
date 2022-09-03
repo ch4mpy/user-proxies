@@ -21,6 +21,7 @@
 .settings/
 *.sublime-workspace
 **/.factorypath
+api/.metadata/
 
 # Visual Studio Code
 **/.vscode/*

@@ -7,11 +7,11 @@ import java.lang.annotation.Target;
 
 import org.springframework.context.annotation.Import;
 
-import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
+import com.c4_soft.springaddons.security.oauth2.test.webmvc.jwt.AutoConfigureAddonsSecurityWebmvcJwt;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@AutoConfigureSecurityAddons
+@AutoConfigureAddonsSecurityWebmvcJwt
 @Import(WebSecurityConfig.class)
-public @interface ControllerTest {
+public @interface WithSecurity {
 }

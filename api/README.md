@@ -19,7 +19,7 @@ mvn archetype:generate \
   -DarchetypeCatalog=remote \
   -DarchetypeGroupId=com.c4-soft.springaddons \
   -DarchetypeArtifactId=spring-webmvc-archetype-multimodule \
-  -DarchetypeVersion=4.4.9 \
+  -DarchetypeVersion=5.1.5 \
   -DgroupId=com.c4-soft.user-proxies \
   -DartifactId=api \
   -Dversion=1.0.0-SNAPSHOT \
@@ -27,7 +27,9 @@ mvn archetype:generate \
   -Dapi-path=user-proxies
 ```
 
-## additional modules
+## Additional modules
+We will create several resource-servers and all will use custom security layer with "user-proxies".
+
 In parent pom, add `security`, `security-test`, `keycloak-mapper` and `greet-api` modules with dependency management for the first two. Also add keycloak version as property:
 ```xml
 	<modules>
@@ -41,7 +43,7 @@ In parent pom, add `security`, `security-test`, `keycloak-mapper` and `greet-api
 	</modules>
 	
 	<properties>
-		<keycloak.version>18.0.2</keycloak.version>
+		<keycloak.version>19.0.1</keycloak.version>
 		...
 	</properties>
 	
@@ -59,201 +61,9 @@ In parent pom, add `security`, `security-test`, `keycloak-mapper` and `greet-api
 			</dependency>
 ...
 ```
-Here are the poms for those modules:
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>com.c4-soft.user-proxies</groupId>
-		<artifactId>api</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
-		<relativePath>..</relativePath>
-	</parent>
-	<groupId>com.c4-soft.user-proxies.api</groupId>
-	<artifactId>security</artifactId>
-	<description>Shared security configuration</description>
+Please refer to the source for those modules `pom.xml` details
 
-	<dependencies>
-		<dependency>
-			<groupId>com.c4-soft.springaddons</groupId>
-			<artifactId>spring-security-oauth2-webmvc-addons</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-config</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-	</dependencies>
-
-</project>
-```
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>com.c4-soft.user-proxies</groupId>
-		<artifactId>api</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
-		<relativePath>..</relativePath>
-	</parent>
-	<groupId>com.c4-soft.user-proxies.api</groupId>
-	<artifactId>security-test</artifactId>
-	<description>Shared annotation to populate test security-context</description>
-
-	<dependencies>
-		<dependency>
-			<groupId>com.c4-soft.user-proxies.api</groupId>
-			<artifactId>security</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.c4-soft.springaddons</groupId>
-			<artifactId>spring-security-oauth2-test-webmvc-addons</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-	</dependencies>
-</project>
-```
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>com.c4-soft.user-proxies</groupId>
-		<artifactId>api</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
-		<relativePath>..</relativePath>
-	</parent>
-	<groupId>com.c4-soft.user-proxies.api</groupId>
-	<artifactId>greet-api</artifactId>
-
-	<properties>
-		<ca-certificates.binding>${project.parent.basedir}/bindings/ca-certificates</ca-certificates.binding>
-	</properties>
-
-	<dependencies>
-		<dependency>
-            <groupId>com.c4-soft.user-proxies.api</groupId>
-			<artifactId>exceptions</artifactId>
-		</dependency>
-		<dependency>
-            <groupId>com.c4-soft.user-proxies.api</groupId>
-            <artifactId>security</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		
-		<dependency>
-			<groupId>io.swagger.core.v3</groupId>
-			<artifactId>swagger-annotations</artifactId>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok-mapstruct-binding</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.experimental</groupId>
-			<artifactId>spring-native</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-
-		<dependency>
-            <groupId>com.c4-soft.user-proxies.api</groupId>
-            <artifactId>security-test</artifactId>
-            <scope>test</scope>
-		</dependency>
-	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-			</plugin>
-		</plugins>
-	</build>
-
-	<profiles>
-		<profile>
-			<id>build-native-image</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.springframework.experimental</groupId>
-						<artifactId>spring-aot-maven-plugin</artifactId>
-					</plugin>
-					<plugin>
-						<groupId>org.hibernate.orm.tooling</groupId>
-						<artifactId>hibernate-enhance-maven-plugin</artifactId>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>openapi</id>
-			<properties>
-				<integration-tests.port>8444</integration-tests.port>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.springdoc</groupId>
-					<artifactId>springdoc-openapi-ui</artifactId>
-				</dependency>
-			</dependencies>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.springdoc</groupId>
-						<artifactId>springdoc-openapi-maven-plugin</artifactId>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
-
-</project>
-```
-
-Also, in `user-proxies-api` replace dependencies on `spring-security-oauth2-webmvc-addons` and `spring-security-oauth2-test-webmvc-addons` by dependencies on `security` and `security-test` modules.
+Also, in `user-proxies-api` replace dependencies on `spring-addons-webmvc-jwt-resource-server` and `spring-addons-webmvc-jwt-test` by dependencies on `security` and `security-test` modules.
 
 ## Grants
 To avoid circular dependencied for grants enum, we'll add it to DTOs modules (it is not an entity and is used a bit of every where). A cleaner approach would be creating a dedicated module.
@@ -271,7 +81,7 @@ This module will hold shared security classes and configuration. Spring-addons p
 - specialized `OAuthentication` which exposes proxies in addition to user name and roles
 - add proxies DSL to security SpEL
 
-Let's first define what `Grant` and `Proxy` are:
+Let's first define the domain model:
 ```java
 package com.c4_soft.user_proxies.api.security;
 
@@ -392,7 +202,7 @@ public class ProxiesAuthentication extends OAuthentication<ProxiesClaimSet> {
 
 Update WebSecurityConfig to:
 - provide a `claimsConverter` bean returning `ProxiesClaimSet` instead of `OpenidClaimSet`
-- provide an `authenticationConverter` returning `ProxiesAuthentication` instances instead of default `OAuthentication<OpenidClaimSet>`
+- provide an `authenticationBuilder` returning `ProxiesAuthentication` instances instead of default `OAuthentication<OpenidClaimSet>`
 - build a `C4MethodSecurityExpressionHandler` bean with a `ProxiesMethodSecurityExpressionRoot` provider. This specialised `C4MethodSecurityExpressionRoot` should expose:
   * `boolean is(String preferredUsername)` to check if current user has given username
   * `Proxy onBehalfOf(String proxiedUsername)` to access the proxy current user has to act on behalf given other user
@@ -402,32 +212,31 @@ Last, define a `ProxiesMethodSecurityExpressionRoot` bean to add proxies DSL to 
 ```java
 package com.c4_soft.user_proxies.api.security;
 
-import java.util.Objects;
-import java.util.Set;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 
-import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2AuthenticationConverter;
-import com.c4_soft.springaddons.security.oauth2.SynchronizedJwt2ClaimSetConverter;
-import com.c4_soft.springaddons.security.oauth2.config.Jwt2AuthoritiesConverter;
+import com.c4_soft.springaddons.security.oauth2.config.OAuth2AuthoritiesConverter;
+import com.c4_soft.springaddons.security.oauth2.config.OAuth2ClaimsConverter;
+import com.c4_soft.springaddons.security.oauth2.config.synchronised.OAuth2AuthenticationBuilder;
 import com.c4_soft.springaddons.security.oauth2.spring.C4MethodSecurityExpressionHandler;
-import com.c4_soft.springaddons.security.oauth2.spring.C4MethodSecurityExpressionRoot;
 
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
 	
 	@Bean
-	SynchronizedJwt2ClaimSetConverter<ProxiesClaimSet> claimsConverter() {
-		return jwt -> new ProxiesClaimSet(jwt.getClaims());
+	OAuth2ClaimsConverter<ProxiesClaimSet> claimsConverter() {
+		return ProxiesClaimSet::new;
 	}
 
     @Bean
-    SynchronizedJwt2AuthenticationConverter<ProxiesAuthentication> authenticationConverter(
-    		SynchronizedJwt2ClaimSetConverter<ProxiesClaimSet> claimsConverter,
-            Jwt2AuthoritiesConverter authoritiesConverter) {
-        return jwt -> new ProxiesAuthentication(claimsConverter.convert(jwt), authoritiesConverter.convert(jwt), jwt.getTokenValue());
+    OAuth2AuthenticationBuilder<ProxiesAuthentication> authenticationBuilder(
+    		OAuth2ClaimsConverter<ProxiesClaimSet> claimsConverter,
+    		OAuth2AuthoritiesConverter authoritiesConverter) {
+        return (bearerString, claims) -> {
+        	final var claimSet = claimsConverter.convert(claims);
+        	return new ProxiesAuthentication(claimSet, authoritiesConverter.convert(claims), bearerString);
+    	};
     }
 
     @Bean
@@ -435,21 +244,21 @@ public class WebSecurityConfig {
         return new C4MethodSecurityExpressionHandler(ProxiesMethodSecurityExpressionRoot::new);
     }
     
-    static final class ProxiesMethodSecurityExpressionRoot extends C4MethodSecurityExpressionRoot {
-
-    	public boolean is(String preferredUsername) {
-    		return Objects.equals(getAuthentication().getName(), preferredUsername);
-    	}
-
-    	public Proxy onBehalfOf(String proxiedUsername) {
-    		return get(ProxiesAuthentication.class).map(a -> a.getProxyFor(proxiedUsername))
-    				.orElse(new Proxy(proxiedUsername, getAuthentication().getName(), Set.of()));
-    	}
-
-    	public boolean isNice() {
-    		return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
-    	}
-    }
+    static class ProxiesMethodSecurityExpressionRoot extends C4MethodSecurityExpressionRoot {
+	
+		public boolean is(String preferredUsername) {
+			return Objects.equals(getAuthentication().getName(), preferredUsername);
+		}
+	
+		public Proxy onBehalfOf(String proxiedUsername) {
+			return get(ProxiesAuthentication.class).map(a -> a.getProxyFor(proxiedUsername))
+					.orElse(new Proxy(proxiedUsername, getAuthentication().getName(), Set.of()));
+		}
+	
+		public boolean isNice() {
+			return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
+		}
+	}
 }
 ```
 
@@ -539,13 +348,13 @@ import java.lang.annotation.Target;
 
 import org.springframework.context.annotation.Import;
 
-import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
+import com.c4_soft.springaddons.security.oauth2.test.webmvc.jwt.AutoConfigureAddonsSecurityWebmvcJwt;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@AutoConfigureSecurityAddons
+@AutoConfigureAddonsSecurityWebmvcJwt
 @Import(WebSecurityConfig.class)
-public @interface ControllerTest {
+public @interface WithSecurity {
 }
 ```
 
@@ -1293,28 +1102,6 @@ public class EnableSpringDataWebSupportTestConf {
 }
 ```
 
-Edit @ControllerTest to add Web security-conf import:
-```java
-package com.c4_soft.user_proxies.api;
-
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-import org.springframework.context.annotation.Import;
-
-import com.c4_soft.springaddons.security.oauth2.test.mockmvc.AutoConfigureSecurityAddons;
-import com.c4_soft.user_proxies.api.security.WebSecurityConfig;
-
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-@AutoConfigureSecurityAddons
-@Import({ EnableSpringDataWebSupportTestConf.class, WebSecurityConfig.class })
-public @interface ControllerTest {
-}
-```
-
 We'll also need a few User and Proxy fixtures:
 ```java
 package com.c4_soft.user_proxies.api;
@@ -1445,13 +1232,13 @@ import com.c4_soft.user_proxies.api.UserFixtures;
 import com.c4_soft.user_proxies.api.domain.User;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.ControllerTest;
+import com.c4_soft.user_proxies.api.security.WithSecurity;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
 import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
 import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @WebMvcTest(controllers = { UserController.class })
-@ControllerTest
+@WithSecurity
 @Import({ EnableSpringDataWebSupportTestConf.class, UserMapperImpl.class, UserProxyMapperImpl.class })
 class UserControllerTests {
 	@Autowired
@@ -2081,25 +1868,8 @@ spring.lifecycle.timeout-per-shutdown-phase=30s
 
 ### Unit tests
 ``` java
-package com.c4_soft.user_proxies.api.web;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-
-import com.c4_soft.springaddons.security.oauth2.test.annotations.OpenIdClaims;
-import com.c4_soft.springaddons.security.oauth2.test.mockmvc.MockMvcSupport;
-import com.c4_soft.user_proxies.api.security.ControllerTest;
-import com.c4_soft.user_proxies.api.security.ProxiesId;
-import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
-import com.c4_soft.user_proxies.api.web.dto.Grant;
-
 @WebMvcTest(GreetController.class)
-@ControllerTest
+@WithSecurity
 class GreetControllerTest {
 
 	@Autowired

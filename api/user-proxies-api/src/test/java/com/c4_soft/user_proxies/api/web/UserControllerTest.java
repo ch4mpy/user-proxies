@@ -23,13 +23,13 @@ import com.c4_soft.user_proxies.api.UserFixtures;
 import com.c4_soft.user_proxies.api.domain.User;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.ControllerTest;
+import com.c4_soft.user_proxies.api.security.WithSecurity;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
 import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
 import com.c4_soft.user_proxies.api.web.dto.Grant;
 
 @WebMvcTest(controllers = { UserController.class })
-@ControllerTest
+@WithSecurity
 @Import({ EnableSpringDataWebSupportTestConf.class, UserMapperImpl.class, UserProxyMapperImpl.class })
 class UserControllerTests {
 	@Autowired
