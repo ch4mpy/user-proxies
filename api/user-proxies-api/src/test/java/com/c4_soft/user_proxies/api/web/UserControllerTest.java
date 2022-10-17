@@ -5,8 +5,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +21,12 @@ import com.c4_soft.user_proxies.api.UserFixtures;
 import com.c4_soft.user_proxies.api.domain.User;
 import com.c4_soft.user_proxies.api.jpa.ProxyRepository;
 import com.c4_soft.user_proxies.api.jpa.UserRepository;
-import com.c4_soft.user_proxies.api.security.WithSecurity;
 import com.c4_soft.user_proxies.api.security.ProxiesId;
 import com.c4_soft.user_proxies.api.security.ProxiesId.Proxy;
+import com.c4_soft.user_proxies.api.security.WithSecurity;
 import com.c4_soft.user_proxies.api.web.dto.Grant;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @WebMvcTest(controllers = { UserController.class })
 @WithSecurity
