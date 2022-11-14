@@ -14,7 +14,7 @@ export const authConfig: PassedInitialConfig = {
     secureRoutes,
     redirectUrl: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
-    clientId: 'user-proxies-client',
+    clientId: 'user-proxies-public',
     scope: 'openid profile offline_access email roles',
     responseType: 'code',
     silentRenew: true,

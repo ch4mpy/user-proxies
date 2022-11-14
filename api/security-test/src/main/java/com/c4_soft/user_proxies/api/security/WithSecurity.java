@@ -12,6 +12,6 @@ import com.c4_soft.springaddons.security.oauth2.test.webmvc.jwt.AutoConfigureAdd
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @AutoConfigureAddonsWebSecurity
-@Import(WebSecurityConfig.class)
+@Import(SecurityConfig.class)
 public @interface WithSecurity {
 }

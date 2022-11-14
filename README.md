@@ -28,7 +28,7 @@ You should refer to [Keycloak doc to enable TLS](https://www.keycloak.org/server
 
 We'll assume you already have
 - Keycloak instance running on https://localhost:8443, with a master realm
-- "user-proxies-client" client in "master" realm with following settings:
+- "user-proxies-public" client in "master" realm with following settings:
   * `Access Type`: public
   * `Standard Flow Enabled`: on
   * `Valid Redirect URIs`: https://localhost:4200/*, https://localhost:8100/*, https://{hostanme}:4200/*, https://{hostanme}:8100/* where {hostname} should be replaced with the name of your machine on the network (who you generated self-signed certificate for)
@@ -36,18 +36,18 @@ We'll assume you already have
 - "user-proxies-mapper" client in "master" realm with following settings:
   * `Access Type`: confidential
   * `Service Accounts Enabled` and `Authorization Enabled`: on, other flows off
-- enabled "client roles" mapper for both clients: under `Clients` > [`user-proxies-client` | `user-proxies-mapper`] > `Mappers` > `Add Builtin` and then edit configuration to set:
+- enabled "client roles" mapper for both clients: under `Clients` > [`user-proxies-public` | `user-proxies-mapper`] > `Mappers` > `Add Builtin` and then edit configuration to set:
   * `Client ID`: user-proxies
   * `Add to ID token`: on
   * `Add to access token`: on
-- `NICE_GUY` role under `Clients` > `user-proxies-client` > `Roles` (plus whichever roles you like)
+- `NICE_GUY` role under `Clients` > `user-proxies-public` > `Roles` (plus whichever roles you like)
 - `TOKEN_ISSUER` role under `Clients` > `user-proxies-mapper` > `Roles`
-- defined a few users with various roles assignements for `user-proxies-client`
+- defined a few users with various roles assignements for `user-proxies-public`
 - granted `TOKEN_ISSUER` under `Clients` > `user-proxies-mapper` > `Service Account Roles` > `Client Roles` > `user-proxies-mapper`
 - a password and an email defined for each user
 
 As you might guess:
-- `user-proxies-client` will be used by Angular web & mobile clients to authenticate users (and add UAA to requests sent to resource-servers)
+- `user-proxies-public` will be used by Angular web & mobile clients to authenticate users (and add UAA to requests sent to resource-servers)
 - `user-proxies-mapper` will be used to allow keycloak mapper to fetch proxies from spring resource-server
 
 ## Required tooling
