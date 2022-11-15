@@ -17,6 +17,6 @@ class ProxiesMethodSecurityExpressionRoot extends C4MethodSecurityExpressionRoot
 	}
 
 	public boolean isNice() {
-		return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
+		return hasAnyAuthority("NICE", "SUPER_COOL");
 	}
 }

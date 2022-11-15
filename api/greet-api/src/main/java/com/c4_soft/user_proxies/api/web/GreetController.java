@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class GreetController {
 
 	@GetMapping()
-	@PreAuthorize("hasAuthority('NICE_GUY')")
+	@PreAuthorize("hasAuthority('NICE')")
 	public GreetDto getGreeting(ProxiesAuthentication auth) {
 		return new GreetDto(
 						"Hi %s! You are granted with: %s and can proxy: %s.".formatted(

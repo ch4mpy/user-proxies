@@ -23,18 +23,18 @@ class GreetControllerTest {
 	MockMvcSupport mockMvc;
 
 	@Test
-	@ProxiesId(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {
+	@ProxiesId(authorities = { "NICE", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {
 			@Proxy(onBehalfOf = "machin", can = { Grant.PROFILE_READ }),
 			@Proxy(onBehalfOf = "chose") })
 	void testGreet() throws Exception {
 		mockMvc
 				.get("/greet")
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.message", is("Hi Tonton Pirate! You are granted with: [NICE_GUY, AUTHOR] and can proxy: [chose, machin].")));
+				.andExpect(jsonPath("$.message", is("Hi Tonton Pirate! You are granted with: [NICE, AUTHOR] and can proxy: [chose, machin].")));
 	}
 
 	@Test
-	@ProxiesId(authorities = { "ROLE_NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {})
+	@ProxiesId(authorities = { "NICE", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {})
 	void testWithNiceAuthority() throws Exception {
 		mockMvc.get("/greet/ch4mpy").andExpect(status().isOk()).andExpect(jsonPath("$.message", is("Hi ch4mpy!")));
 	}

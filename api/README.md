@@ -256,7 +256,7 @@ public class WebSecurityConfig {
 		}
 	
 		public boolean isNice() {
-			return hasAnyAuthority("ROLE_NICE_GUY", "SUPER_COOL");
+			return hasAnyAuthority("NICE", "SUPER_COOL");
 		}
 	}
 }
@@ -1810,7 +1810,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class GreetController {
 
 	@GetMapping()
-	@PreAuthorize("hasAuthority('NICE_GUY')")
+	@PreAuthorize("hasAuthority('NICE')")
 	public GreetDto getGreeting(ProxiesAuthentication auth) {
 		return new GreetDto(
 						"Hi %s! You are granted with: %s and can proxy: %s.".formatted(
@@ -1876,18 +1876,18 @@ class GreetControllerTest {
 	MockMvcSupport mockMvc;
 
 	@Test
-	@ProxiesId(authorities = { "NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {
+	@ProxiesId(authorities = { "NICE", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {
 			@Proxy(onBehalfOf = "machin", can = { Grant.PROFILE_READ }),
 			@Proxy(onBehalfOf = "chose") })
 	void testGreet() throws Exception {
 		mockMvc
 				.get("/greet")
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.message", is("Hi Tonton Pirate! You are granted with: [NICE_GUY, AUTHOR] and can proxy: [chose, machin].")));
+				.andExpect(jsonPath("$.message", is("Hi Tonton Pirate! You are granted with: [NICE, AUTHOR] and can proxy: [chose, machin].")));
 	}
 
 	@Test
-	@ProxiesId(authorities = { "ROLE_NICE_GUY", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {})
+	@ProxiesId(authorities = { "ROLE_NICE", "AUTHOR" }, claims = @OpenIdClaims(preferredUsername = "Tonton Pirate"), proxies = {})
 	void testWithNiceAuthority() throws Exception {
 		mockMvc.get("/greet/ch4mpy").andExpect(status().isOk()).andExpect(jsonPath("$.message", is("Hi ch4mpy!")));
 	}

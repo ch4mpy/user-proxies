@@ -14,18 +14,22 @@ public class GatewayApplication {
 	}
 
 	/**
-	 * With following conf, users-API, greet-API and keycloak are all accessible through gateway (https://localhost:8080)
-	 * as well as directly (respectively https://localhost:9445, https://localhost:9443 and https://localhost:8443)
+	 * With following conf, users-API, greet-API and keycloak are all accessible
+	 * through gateway (https://localhost:8080) as well as directly (respectively
+	 * https://localhost:9445, https://localhost:9443 and https://localhost:8443)
 	 * 
 	 * @param builder
 	 * @return
 	 */
 	@Bean
 	public RouteLocator myRoutes(RouteLocatorBuilder builder) {
-		return builder.routes()
-				.route(p -> p.path("/users/**").uri("https://localhost:9443"))
+		return builder.routes().route(p -> p.path("/users/**").uri("https://localhost:9443"))
 				.route(p -> p.path("/greet/**").uri("https://localhost:9445"))
-				.route(p -> p.path("/realms/**").uri("https://localhost:8443"))
+				.route(p -> p.path("/realms/**")
+						.filters(f -> f.removeResponseHeader("Access-Control-Allow-Origin")
+								.removeResponseHeader("Access-Control-Allow-Methods")
+								.removeResponseHeader("Access-Control-Allow-ALLOWED_HEADERS"))
+						.uri("https://localhost:8443"))
 				.build();
 	}
 }

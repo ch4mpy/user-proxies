@@ -1,7 +1,7 @@
 import { LogLevel, PassedInitialConfig } from 'angular-auth-oidc-client'
 
-const usersBasePath = 'https://localhost:9443'
-const greetBasePath = 'https://localhost:9445'
+const usersBasePath = 'https://localhost:8080'
+const greetBasePath = 'https://localhost:8080'
 
 const secureRoutes = [
   `${usersBasePath}/users`,
